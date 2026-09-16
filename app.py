@@ -1,8 +1,7 @@
 # ==========================================
 # 1. INSTALACIÓN DE LIBRERÍAS
 # ==========================================
-!pip install google_play_scraper pandas openpyxl wordcloud
-
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from google_play_scraper import Sort, reviews_all
