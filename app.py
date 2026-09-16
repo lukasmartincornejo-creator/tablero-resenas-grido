@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from google_play_scraper import Sort, reviews_all
 from datetime import datetime, timedelta
 from wordcloud import WordCloud, STOPWORDS
@@ -12,27 +11,35 @@ import io
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
 # ==========================================
 st.set_page_config(
-    page_title="Tablero Ejecutivo | Reviews de Grido App",
+    page_title="Executive Dashboard | Grido Reviews",
     page_icon="🍦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilo personalizado en CSS
+# Estilo en CSS adaptado para asegurar contraste y visibilidad perfecta en Dark/Light mode
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric {
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    div[data-testid="stMetric"] {
+        background-color: #1e293b !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        border: 1px solid #334155 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #94a3b8 !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #f8fafc !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("🍦 Dashboard Ejecutivo: Monitoreo de Voz del Cliente (VoC)")
-st.caption("Análisis automatizado de experiencia de usuario y sentimiento en Google Play Store")
+st.caption("Análisis comparativo automatizado de experiencia de usuario y sentimiento en Google Play Store")
 
 # ==========================================
 # 2. BARRA LATERAL (CONTROLES)
@@ -41,14 +48,14 @@ st.sidebar.image("https://img.icons8.com/color/96/ice-cream-cone.png", width=60)
 st.sidebar.header("🕹️ Panel de Control")
 
 APP_ID = 'com.grido.app'
-dias_analisis = st.sidebar.slider("Periodo reciente (Días):", min_value=7, max_value=90, value=14)
+dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
 
 if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ
+# 3. EXTRACCIÓN Y CACHÉ DE DATOS
 # ==========================================
 @st.cache_data(ttl=3600, show_spinner=False)
 def cargar_datos(app_id):
@@ -74,89 +81,121 @@ with st.spinner("Descargando e indexando reseñas..."):
     df = cargar_datos(APP_ID)
 
 if df.empty:
-    st.error("No se pudieron recuperar datos.")
+    st.error("No se pudieron recuperar datos de Play Store.")
     st.stop()
 
-# Filtros de fecha
-fecha_corte = datetime.now() - timedelta(days=dias_analisis)
-df_reciente = df[df['at'] >= fecha_corte].copy()
+# ==========================================
+# 4. SEGMENTACIÓN TEMPORAL COMPARATIVA
+# ==========================================
+ahora = datetime.now()
+fecha_corte_actual = ahora - timedelta(days=dias_analisis)
+fecha_corte_anterior = fecha_corte_actual - timedelta(days=dias_analisis)
+
+# Periodo Actual vs Periodo Anterior equivalente
+df_actual = df[(df['at'] >= fecha_corte_actual) & (df['at'] <= ahora)].copy()
+df_anterior = df[(df['at'] >= fecha_corte_anterior) & (df['at'] < fecha_corte_actual)].copy()
+
+# Periodo de Mes Anterior (30 a 60 días atrás)
+fecha_mes_actual = ahora - timedelta(days=30)
+fecha_mes_anterior = ahora - timedelta(days=60)
+df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
 
 color_map = {'Positivo': '#2ecc71', 'Neutro': '#f39c12', 'Negativo': '#e74c3c'}
 
 # ==========================================
-# 4. TARJETAS DE KPIS SUPERIORES
+# 5. TARJETAS DE KPIS CON COMPARATIVA (DELTAS)
 # ==========================================
 st.markdown("---")
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
 total_historico = len(df)
-total_reciente = len(df_reciente)
-rating_prom = df_reciente['score'].mean() if not df_reciente.empty else 0
+vol_actual = len(df_actual)
+vol_anterior = len(df_anterior)
+delta_vol = vol_actual - vol_anterior
 
-# CSAT Estimado (% Positivos)
-csat = (df_reciente['sentimiento'] == 'Positivo').mean() * 100 if not df_reciente.empty else 0
+rating_actual = df_actual['score'].mean() if not df_actual.empty else 0
+rating_anterior = df_anterior['score'].mean() if not df_anterior.empty else 0
+delta_rating = rating_actual - rating_anterior
+
+csat_actual = (df_actual['sentimiento'] == 'Positivo').mean() * 100 if not df_actual.empty else 0
+csat_anterior = (df_anterior['sentimiento'] == 'Positivo').mean() * 100 if not df_anterior.empty else 0
+delta_csat = csat_actual - csat_anterior
 
 kpi1.metric("Reseñas Históricas", f"{total_historico:,}")
-kpi2.metric(f"Reseñas ({dias_analisis} días)", f"{total_reciente:,}")
-kpi3.metric("Rating Promedio", f"{rating_prom:.2f} ⭐")
-kpi4.metric("CSAT Reciente", f"{csat:.1f}%")
+kpi2.metric(f"Reseñas ({dias_analisis}d)", f"{vol_actual:,}", delta=f"{delta_vol:+} vs p. anterior")
+kpi3.metric("Rating Promedio", f"{rating_actual:.2f} ⭐", delta=f"{delta_rating:+.2f} ⭐ vs p. anterior")
+kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% vs p. anterior")
 
 st.markdown("---")
 
 # ==========================================
-# 5. ESTRUCTURA EN PESTAÑAS (TABS)
+# 6. ESTRUCTURA EN PESTAÑAS (TABS)
 # ==========================================
-tab1, tab2, tab3 = st.columns(3)
 tab_volumen, tab_sentimiento, tab_palabras = st.tabs([
     "📈 Tendencia y Volumen", 
-    "📊 Distribución de Sentimiento", 
+    "📊 Comparativa de Sentimiento", 
     "☁️ Diagnóstico Cualitativo (Nubes)"
 ])
 
-# --- TAB 1: TENDENCIA ---
+# --- TAB 1: TENDENCIA TEMPORAL ---
 with tab_volumen:
-    st.subheader("Evolución Diaria del Sentimiento")
-    if not df_reciente.empty:
-        df_reciente['fecha'] = df_reciente['at'].dt.date
-        df_time = df_reciente.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
+    st.subheader(f"Evolución Diaria del Sentimiento (Últimos {dias_analisis} días)")
+    if not df_actual.empty:
+        df_actual['fecha'] = df_actual['at'].dt.date
+        df_time = df_actual.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
         
         fig_line = px.bar(
             df_time, x='fecha', y='cantidad', color='sentimiento',
             color_discrete_map=color_map,
-            title=f"Volumen diario de opiniones en los últimos {dias_analisis} días",
             barmode='stack', template="plotly_white"
         )
         fig_line.update_layout(xaxis_title="Fecha", yaxis_title="Cantidad de Reseñas", legend_title="Sentimiento")
         st.plotly_chart(fig_line, use_container_width=True)
+    else:
+        st.info("No hay datos suficientes en el rango seleccionado.")
 
-# --- TAB 2: DISTRIBUCIÓN ---
+# --- TAB 2: DISTRIBUCIÓN Y COMPARATIVA DE TORTAS ---
 with tab_sentimiento:
-    col_g1, col_g2 = st.columns(2)
+    st.subheader("Análisis Comparativo por Periodos")
+    col_g1, col_g2, col_g3 = st.columns(3)
     
     with col_g1:
-        st.subheader("Histórico General")
+        st.markdown("##### 📜 Histórico Completo")
         fig_pie_h = px.pie(
             df, names='sentimiento', color='sentimiento',
-            color_discrete_map=color_map, hole=0.5, template="plotly_white"
+            color_discrete_map=color_map, hole=0.4, template="plotly_white"
         )
         fig_pie_h.update_traces(textinfo='percent+label')
         st.plotly_chart(fig_pie_h, use_container_width=True)
 
     with col_g2:
-        st.subheader(f"Últimos {dias_analisis} días")
-        if not df_reciente.empty:
+        st.markdown("##### 📅 Mes Anterior (30-60 días atrás)")
+        if not df_mes_anterior.empty:
+            fig_pie_m = px.pie(
+                df_mes_anterior, names='sentimiento', color='sentimiento',
+                color_discrete_map=color_map, hole=0.4, template="plotly_white"
+            )
+            fig_pie_m.update_traces(textinfo='percent+label')
+            st.plotly_chart(fig_pie_m, use_container_width=True)
+        else:
+            st.write("Sin datos del mes anterior.")
+
+    with col_g3:
+        st.markdown(f"##### 🚀 Periodo Actual ({dias_analisis} días)")
+        if not df_actual.empty:
             fig_pie_s = px.pie(
-                df_reciente, names='sentimiento', color='sentimiento',
-                color_discrete_map=color_map, hole=0.5, template="plotly_white"
+                df_actual, names='sentimiento', color='sentimiento',
+                color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
+        else:
+            st.write("Sin datos del periodo actual.")
 
-# --- TAB 3: NUBES DE PALABRAS MEJORADAS ---
+# --- TAB 3: NUBES DE PALABRAS ---
 with tab_palabras:
-    st.subheader("Análisis Semántico de la Experiencia de Usuario")
+    st.subheader("Análisis Semántico del Periodo Actual")
     
-    # Stopwords ampliadas para limpiar ruido de negocio
     stopwords_pro = set(STOPWORDS)
     stopwords_pro.update([
         "que", "la", "el", "de", "en", "para", "una", "un", "es", "por", "si", "app", 
@@ -169,7 +208,7 @@ with tab_palabras:
     
     with c1:
         st.markdown("##### 🟢 Atributos Positivos Valorados")
-        df_p = df_reciente[df_reciente['sentimiento'] == 'Positivo']
+        df_p = df_actual[df_actual['sentimiento'] == 'Positivo']
         if not df_p.empty and df_p['content'].dropna().str.len().sum() > 0:
             txt_p = " ".join(review for review in df_p['content'].dropna().astype(str))
             wc_p = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Greens').generate(txt_p)
@@ -182,8 +221,8 @@ with tab_palabras:
             st.info("Sin datos suficientes.")
 
     with c2:
-        st.markdown("##### 🔴 Puntos de Dolor (Puntos de Ficción)")
-        df_n = df_reciente[df_reciente['sentimiento'] == 'Negativo']
+        st.markdown("##### 🔴 Puntos de Fricción (Atención Requerida)")
+        df_n = df_actual[df_actual['sentimiento'] == 'Negativo']
         if not df_n.empty and df_n['content'].dropna().str.len().sum() > 0:
             txt_n = " ".join(review for review in df_n['content'].dropna().astype(str))
             wc_n = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Reds').generate(txt_n)
@@ -196,19 +235,20 @@ with tab_palabras:
             st.info("Sin datos suficientes.")
 
 # ==========================================
-# 6. EXPORTACIÓN Y DESCARGA
+# 7. EXPORTACIÓN DE DATOS
 # ==========================================
 st.markdown("---")
-st.subheader("📥 Exportación Ejecutiva")
+st.subheader("📥 Exportar Datos")
 
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-    df.to_excel(writer, sheet_name='Historico', index=False)
-    df_reciente.to_excel(writer, sheet_name='Periodo_Analizado', index=False)
+    df.to_excel(writer, sheet_name='Historico_Completo', index=False)
+    df_actual.to_excel(writer, sheet_name='Periodo_Actual', index=False)
+    df_anterior.to_excel(writer, sheet_name='Periodo_Anterior_Eq', index=False)
 
 st.download_button(
-    label="📄 Descargar Dataset Completo en Excel (.xlsx)",
+    label="📄 Descargar Dataset Comparativo (.xlsx)",
     data=buffer.getvalue(),
-    file_name=f"Reporte_VoC_Grido_{datetime.now().strftime('%Y%m%d')}.xlsx",
+    file_name=f"Reporte_VoC_Grido_Comparativo_{datetime.now().strftime('%Y%m%d')}.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
