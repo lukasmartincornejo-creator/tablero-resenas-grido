@@ -8,22 +8,22 @@ import matplotlib.pyplot as plt
 import io
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y MARCA GRIDO
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
 # ==========================================
 st.set_page_config(
     page_title="VoC Dashboard | Grido",
-    page_icon="https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png",
+    page_icon="🍦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados basados en la UI de Grido
+# Estilos CSS corregidos con alto contraste asegurado
 st.markdown("""
     <style>
-    /* Fondo principal y fuentes */
+    /* Forzar fondo claro general */
     .stApp {
-        background-color: #f4f6f9;
-        font-family: 'Segoe UI', Roboto, sans-serif;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
     }
     
     /* Barra lateral */
@@ -32,10 +32,13 @@ st.markdown("""
         border-right: 1px solid #e2e8f0;
     }
     
-    /* Encabezados y títulos */
+    /* Títulos y Subtítulos */
     h1, h2, h3 {
-        color: #002169 !important; /* Azul Grido */
-        font-weight: 700 !important;
+        color: #002169 !important;
+        font-weight: 800 !important;
+    }
+    .stCaption, p, span {
+        color: #334155 !important;
     }
     
     /* Tarjetas de Métricas (KPIs) */
@@ -43,57 +46,52 @@ st.markdown("""
         background-color: #ffffff !important;
         padding: 18px !important;
         border-radius: 12px !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 4px 12px rgba(0, 33, 105, 0.05) !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
-    div[data-testid="stMetricLabel"] {
+    div[data-testid="stMetricLabel"] > div {
         color: #002169 !important;
-        font-size: 0.9rem !important;
+        font-size: 1rem !important;
         font-weight: 700 !important;
     }
-    div[data-testid="stMetricValue"] {
-        color: #e30613 !important; /* Rojo Grido */
+    div[data-testid="stMetricValue"] > div {
+        color: #e30613 !important;
         font-weight: 800 !important;
     }
+    div[data-testid="stMetricDelta"] span {
+        font-weight: 600 !important;
+    }
     
-    /* Botones primarios (Celeste Grido) */
-    div.stButton > button {
-        background-color: #00a0e9 !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: none !important;
-        font-weight: bold !important;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:hover {
-        background-color: #0080c0 !important;
-        box-shadow: 0 4px 8px rgba(0, 160, 233, 0.3) !important;
-    }
-
     /* Pestañas (Tabs) */
     button[data-baseweb="tab"] {
-        color: #002169 !important;
+        color: #475569 !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
     }
     button[aria-selected="true"] {
-        border-bottom-color: #e30613 !important; /* Línea roja Grido */
+        color: #002169 !important;
+        border-bottom-color: #e30613 !important;
+    }
+
+    /* Botón Primario */
+    div.stButton > button {
+        background-color: #00a0e9 !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Header con Logo Oficial de Grido
-col_logo, col_titulo = st.columns([1, 6])
-with col_logo:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png", width=120)
-with col_titulo:
-    st.title("Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
-    st.caption("Plataforma de análisis de experiencia de usuario y sentimiento en tiempo real")
+# Encabezado con título limpio
+st.title("🍦 Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
+st.markdown("**Grido Argentina** | Plataforma de análisis de experiencia de usuario y sentimiento")
 
 # ==========================================
 # 2. BARRA LATERAL (CONTROLES)
 # ==========================================
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png", width=140)
+st.sidebar.markdown("## 🍦 **Grido VoC**")
 st.sidebar.markdown("---")
 st.sidebar.header("🕹️ Panel de Control")
 
@@ -148,8 +146,7 @@ fecha_mes_actual = ahora - timedelta(days=30)
 fecha_mes_anterior = ahora - timedelta(days=60)
 df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
 
-# Paleta de colores ajustada a la marca
-color_map = {'Positivo': '#00a0e9', 'Neutro': '#a0aec0', 'Negativo': '#e30613'}
+color_map = {'Positivo': '#00a0e9', 'Neutro': '#94a3b8', 'Negativo': '#e30613'}
 
 # ==========================================
 # 5. TARJETAS DE KPIS COMPARATIVAS
@@ -198,7 +195,13 @@ with tab_volumen:
             color_discrete_map=color_map,
             barmode='stack', template="plotly_white"
         )
-        fig_line.update_layout(xaxis_title="Fecha", yaxis_title="Cantidad de Reseñas", legend_title="Sentimiento")
+        fig_line.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis_title="Fecha", 
+            yaxis_title="Cantidad de Reseñas", 
+            legend_title="Sentimiento"
+        )
         st.plotly_chart(fig_line, use_container_width=True)
 
 # --- TAB 2: COMPARATIVA ---
@@ -212,6 +215,7 @@ with tab_sentimiento:
             df, names='sentimiento', color='sentimiento',
             color_discrete_map=color_map, hole=0.4, template="plotly_white"
         )
+        fig_pie_h.update_layout(paper_bgcolor='rgba(0,0,0,0)')
         fig_pie_h.update_traces(textinfo='percent+label')
         st.plotly_chart(fig_pie_h, use_container_width=True)
 
@@ -222,6 +226,7 @@ with tab_sentimiento:
                 df_mes_anterior, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
+            fig_pie_m.update_layout(paper_bgcolor='rgba(0,0,0,0)')
             fig_pie_m.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_m, use_container_width=True)
 
@@ -232,6 +237,7 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
+            fig_pie_s.update_layout(paper_bgcolor='rgba(0,0,0,0)')
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
