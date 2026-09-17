@@ -12,18 +12,20 @@ st.set_page_config(
     page_title="Executive VoC Dashboard | Grido",
     page_icon="🍦",
     layout="wide",
-    initial_sidebar_state="expanded" # Se fija el sidebar expandido por defecto
+    initial_sidebar_state="expanded"
 )
 
 # Estilos CSS de corrección visual
 st.markdown("""
     <style>
-    /* 1. OCULTAR COMPLETAMENTE EL BOTÓN DE PLEGAR/COLAPSAR EL SIDEBAR */
+    /* 1. OCULTAR COMPLETAMENTE EL BOTÓN DE PLEGAR/COLAPSAR EL SIDEBAR Y SU TEXTO */
     button[data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapseButton"],
     div[data-testid="collapsedControl"] {
         display: none !important;
         visibility: hidden !important;
+        width: 0px !important;
+        height: 0px !important;
     }
 
     /* 2. FONDO Y ESTRUCTURA GENERAL */
@@ -292,6 +294,7 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
+            fig_pie_s = aplicar_estilo_grafico(fig_pie_s) # <-- APLICADO PARA EVITAR FONDO NEGRO
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
