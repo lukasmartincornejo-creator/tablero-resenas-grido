@@ -3,93 +3,91 @@ import pandas as pd
 import plotly.express as px
 from google_play_scraper import Sort, reviews_all
 from datetime import datetime, timedelta
-from wordcloud import WordCloud, STOPWORDS
-import matplotlib.pyplot as plt
 import io
+import re
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
+# 1. CONFIGURACIÓN DE PÁGINA
 # ==========================================
 st.set_page_config(
-    page_title="VoC Dashboard | Grido",
+    page_title="Executive VoC Dashboard | Grido",
     page_icon="🍦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS corregidos con alto contraste asegurado
+# Estilos CSS con forzado de contraste alto
 st.markdown("""
     <style>
-    /* Forzar fondo claro general */
+    /* Forzar fondo general claro */
     .stApp {
         background-color: #f8fafc !important;
-        color: #0f172a !important;
     }
     
-    /* Barra lateral */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e2e8f0;
-    }
-    
-    /* Títulos y Subtítulos */
-    h1, h2, h3 {
+    /* Textos generales */
+    h1, h2, h3, h4, h5, h6, label, p, span {
         color: #002169 !important;
-        font-weight: 800 !important;
-    }
-    .stCaption, p, span {
-        color: #334155 !important;
+        font-family: 'Segoe UI', Roboto, sans-serif !important;
     }
     
-    /* Tarjetas de Métricas (KPIs) */
+    /* Subtítulos y descripciones */
+    .stCaption, caption {
+        color: #475569 !important;
+    }
+    
+    /* Tarjetas de KPIs */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
-        padding: 18px !important;
+        padding: 16px !important;
         border-radius: 12px !important;
-        border: 1px solid #cbd5e1 !important;
+        border: 2px solid #e2e8f0 !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     div[data-testid="stMetricLabel"] > div {
         color: #002169 !important;
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
         font-weight: 700 !important;
     }
     div[data-testid="stMetricValue"] > div {
         color: #e30613 !important;
         font-weight: 800 !important;
     }
-    div[data-testid="stMetricDelta"] span {
-        font-weight: 600 !important;
-    }
     
-    /* Pestañas (Tabs) */
-    button[data-baseweb="tab"] {
-        color: #475569 !important;
-        font-size: 1.05rem !important;
-        font-weight: 600 !important;
-    }
-    button[aria-selected="true"] {
-        color: #002169 !important;
-        border-bottom-color: #e30613 !important;
-    }
-
-    /* Botón Primario */
-    div.stButton > button {
+    /* Botones primarios (Descargar Excel / Actualizar) */
+    div.stButton > button, div.stDownloadButton > button {
         background-color: #00a0e9 !important;
         color: #ffffff !important;
         border-radius: 8px !important;
         border: none !important;
         font-weight: bold !important;
+        font-size: 1rem !important;
+        padding: 0.6rem 1.2rem !important;
+        box-shadow: 0 4px 6px rgba(0, 160, 233, 0.2) !important;
+    }
+    div.stButton > button:hover, div.stDownloadButton > button:hover {
+        background-color: #0080c0 !important;
+        color: #ffffff !important;
+    }
+
+    /* Tabs / Pestañas */
+    button[data-baseweb="tab"] {
+        color: #334155 !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+    }
+    button[aria-selected="true"] {
+        color: #e30613 !important;
+        border-bottom-color: #e30613 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado con título limpio
+# Encabezado Ejecutivo
 st.title("🍦 Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
-st.markdown("**Grido Argentina** | Plataforma de análisis de experiencia de usuario y sentimiento")
+st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción en App Store")
 
 # ==========================================
-# 2. BARRA LATERAL (CONTROLES)
+# 2. BARRA LATERAL
 # ==========================================
 st.sidebar.markdown("## 🍦 **Grido VoC**")
 st.sidebar.markdown("---")
@@ -125,7 +123,7 @@ def cargar_datos(app_id):
         df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
     return df
 
-with st.spinner("Descargando información de Google Play Store..."):
+with st.spinner("Descargando datos de Google Play Store..."):
     df = cargar_datos(APP_ID)
 
 if df.empty:
@@ -133,7 +131,7 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# 4. SEGMENTACIÓN TEMPORAL COMPARATIVA
+# 4. SEGMENTACIÓN TEMPORAL Y CATEGORIZACIÓN
 # ==========================================
 ahora = datetime.now()
 fecha_corte_actual = ahora - timedelta(days=dias_analisis)
@@ -145,6 +143,22 @@ df_anterior = df[(df['at'] >= fecha_corte_anterior) & (df['at'] < fecha_corte_ac
 fecha_mes_actual = ahora - timedelta(days=30)
 fecha_mes_anterior = ahora - timedelta(days=60)
 df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
+
+# Función de clasificación temática del feedback
+def categorizar_reclamo(texto):
+    texto = str(texto).lower()
+    if any(k in texto for k in ['tarjeta', 'pago', 'cobro', 'mercado', 'dinero', 'precio', 'descuento']):
+        return 'Pagos y Promociones'
+    elif any(k in texto for k in ['clave', 'contraseña', 'ingresar', 'login', 'mail', 'registro', 'cuenta']):
+        return 'Acceso y Cuenta'
+    elif any(k in texto for k in ['abrir', 'cierra', 'traba', 'lenta', 'error', 'pantalla', 'bug', 'funciona']):
+        return 'Estabilidad App'
+    elif any(k in texto for k in ['local', 'sucursal', 'pedido', 'demora', 'atencion', 'delivery', 'helado']):
+        return 'Servicio y Pedidos'
+    else:
+        return 'Otros / General'
+
+df_actual['categoria'] = df_actual['content'].apply(categorizar_reclamo)
 
 color_map = {'Positivo': '#00a0e9', 'Neutro': '#94a3b8', 'Negativo': '#e30613'}
 
@@ -177,10 +191,11 @@ st.markdown("---")
 # ==========================================
 # 6. PESTAÑAS Y GRÁFICOS
 # ==========================================
-tab_volumen, tab_sentimiento, tab_palabras = st.tabs([
+tab_volumen, tab_sentimiento, tab_categorias, tab_explorador = st.tabs([
     "📈 Tendencia y Volumen", 
     "📊 Comparativa de Sentimiento", 
-    "☁️ Diagnóstico Cualitativo (Nubes)"
+    "🎯 Pilares de Fricción",
+    "💬 Explorador de Comentarios"
 ])
 
 # --- TAB 1: TENDENCIA ---
@@ -241,49 +256,71 @@ with tab_sentimiento:
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
-# --- TAB 3: NUBES DE PALABRAS ---
-with tab_palabras:
-    st.subheader("Análisis Semántico del Periodo Actual")
+# --- TAB 3: CATEGORÍAS DE FRICCIÓN (NUEVO) ---
+with tab_categorias:
+    st.subheader("Categorización de Temas Recurrentes en el Periodo")
+    col_cat1, col_cat2 = st.columns(2)
     
-    stopwords_pro = set(STOPWORDS)
-    stopwords_pro.update([
-        "que", "la", "el", "de", "en", "para", "una", "un", "es", "por", "si", "app", 
-        "grido", "pero", "con", "me", "al", "lo", "como", "las", "y", "se", "te", "ni", 
-        "creo", "tengo", "puedo", "muy", "mas", "mi", "ya", "bien", "mal", "hola", "hacer",
-        "todo", "nada", "dia", "favor", "pido", "version", "actualizacion", "hace"
-    ])
-    
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.markdown("##### 💙 Atributos Positivos Valorados")
-        df_p = df_actual[df_actual['sentimiento'] == 'Positivo']
-        if not df_p.empty and df_p['content'].dropna().str.len().sum() > 0:
-            txt_p = " ".join(review for review in df_p['content'].dropna().astype(str))
-            wc_p = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Blues').generate(txt_p)
-            
-            fig_wc1, ax_wc1 = plt.subplots(figsize=(8, 4.5))
-            ax_wc1.imshow(wc_p, interpolation='bilinear')
-            ax_wc1.axis("off")
-            st.pyplot(fig_wc1)
+    with col_cat1:
+        st.markdown("##### 🔍 Distribución por Categoría de Reclamo/Tema")
+        df_cat_count = df_actual['categoria'].value_counts().reset_index()
+        df_cat_count.columns = ['Categoría', 'Cantidad']
+        
+        fig_cat = px.bar(
+            df_cat_count, x='Cantidad', y='Categoría', orientation='h',
+            color='Categoría', color_discrete_sequence=px.colors.qualitative.Bold,
+            template="plotly_white"
+        )
+        fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        st.plotly_chart(fig_cat, use_container_width=True)
+        
+    with col_cat2:
+        st.markdown("##### ⭐ Desglose Estricto por Calificación (Estrellas)")
+        df_score_count = df_actual['score'].value_counts().reset_index()
+        df_score_count.columns = ['Estrellas', 'Cantidad']
+        df_score_count['Estrellas'] = df_score_count['Estrellas'].astype(str) + " ⭐"
+        
+        fig_score = px.bar(
+            df_score_count, x='Estrellas', y='Cantidad',
+            color='Estrellas', color_discrete_sequence=['#e30613', '#f39c12', '#00a0e9', '#2ecc71', '#002169'],
+            template="plotly_white"
+        )
+        fig_score.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        st.plotly_chart(fig_score, use_container_width=True)
 
-    with c2:
-        st.markdown("##### 🔴 Puntos de Fricción (Atención Requerida)")
-        df_n = df_actual[df_actual['sentimiento'] == 'Negativo']
-        if not df_n.empty and df_n['content'].dropna().str.len().sum() > 0:
-            txt_n = " ".join(review for review in df_n['content'].dropna().astype(str))
-            wc_n = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Reds').generate(txt_n)
-            
-            fig_wc2, ax_wc2 = plt.subplots(figsize=(8, 4.5))
-            ax_wc2.imshow(wc_n, interpolation='bilinear')
-            ax_wc2.axis("off")
-            st.pyplot(fig_wc2)
+# --- TAB 4: EXPLORADOR DE COMENTARIOS (NUEVO) ---
+with tab_explorador:
+    st.subheader("Explorador Directo de Reseñas de Clientes")
+    
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        filtro_sent = st.multiselect("Filtrar por Sentimiento:", options=['Positivo', 'Neutro', 'Negativo'], default=['Negativo', 'Neutro'])
+    with col_f2:
+        busqueda_texto = st.text_input("Buscar por palabra clave (ej. 'Mercado Pago', 'caja', 'demora'):")
+        
+    df_filtrado = df_actual[df_actual['sentimiento'].isin(filtro_sent)]
+    if busqueda_texto:
+        df_filtrado = df_filtrado[df_filtrado['content'].str.contains(busqueda_texto, case=False, na=False)]
+        
+    st.dataframe(
+        df_filtrado[['at', 'userName', 'score', 'sentimiento', 'categoria', 'content']].sort_values(by='at', ascending=False),
+        column_config={
+            "at": "Fecha",
+            "userName": "Usuario",
+            "score": "Rating",
+            "sentimiento": "Sentimiento",
+            "categoria": "Categoría",
+            "content": "Comentario Completo"
+        },
+        use_container_width=True,
+        hide_index=True
+    )
 
 # ==========================================
 # 7. EXPORTACIÓN
 # ==========================================
 st.markdown("---")
-st.subheader("📥 Exportar Datos")
+st.subheader("📥 Exportación para Stakeholders")
 
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -292,7 +329,7 @@ with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df_anterior.to_excel(writer, sheet_name='Periodo_Anterior_Eq', index=False)
 
 st.download_button(
-    label="📄 Descargar Dataset Comparativo (.xlsx)",
+    label="📄 Descargar Dataset Completo en Excel (.xlsx)",
     data=buffer.getvalue(),
     file_name=f"Reporte_VoC_Grido_Comparativo_{datetime.now().strftime('%Y%m%d')}.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
