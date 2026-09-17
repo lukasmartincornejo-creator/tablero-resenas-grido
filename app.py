@@ -12,22 +12,18 @@ st.set_page_config(
     page_title="Executive VoC Dashboard | Grido",
     page_icon="🍦",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" # Se fija el sidebar expandido por defecto
 )
 
 # Estilos CSS de corrección visual
 st.markdown("""
     <style>
-    /* 1. SOLUCIÓN AL TEXTO 'keyboard_double' */
-    button[data-testid="stSidebarCollapseButton"] span,
-    button[data-testid="stSidebarCollapseButton"] i,
-    [data-testid="stSidebarNavLink"] span {
-        font-size: 0px !important;
-    }
-    button[data-testid="stSidebarCollapseButton"]::after {
-        content: "◀" !important;
-        font-size: 14px !important;
-        color: #002169 !important;
+    /* 1. OCULTAR COMPLETAMENTE EL BOTÓN DE PLEGAR/COLAPSAR EL SIDEBAR */
+    button[data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapseButton"],
+    div[data-testid="collapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
     }
 
     /* 2. FONDO Y ESTRUCTURA GENERAL */
@@ -296,7 +292,6 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_s = aplicar_estilo_grafico(fig_pie_s)
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
