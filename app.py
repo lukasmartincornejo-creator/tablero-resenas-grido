@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import io
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS NATIVOS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
 # ==========================================
 st.set_page_config(
     page_title="Executive VoC Dashboard | Grido",
@@ -15,10 +15,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS corregidos (Modo Claro Forzado)
+# Estilos CSS de corrección visual
 st.markdown("""
     <style>
-    /* 1. FONDO PRINCIPAL Y PANEL LATERAL CLARO */
+    /* 1. SOLUCIÓN AL TEXTO 'keyboard_double' */
+    button[data-testid="stSidebarCollapseButton"] span,
+    button[data-testid="stSidebarCollapseButton"] i,
+    [data-testid="stSidebarNavLink"] span {
+        font-size: 0px !important;
+    }
+    button[data-testid="stSidebarCollapseButton"]::after {
+        content: "◀" !important;
+        font-size: 14px !important;
+        color: #002169 !important;
+    }
+
+    /* 2. FONDO Y ESTRUCTURA GENERAL */
     .stApp {
         background-color: #f8fafc !important;
     }
@@ -30,7 +42,7 @@ st.markdown("""
         color: #002169 !important;
     }
     
-    /* 2. TIPOGRAFÍA Y ENCABEZADOS DE ALTO CONTRASTE */
+    /* 3. TIPOGRAFÍA Y ENCABEZADOS DE ALTO CONTRASTE */
     h1, h2, h3, h4, h5, h6 {
         color: #002169 !important;
         font-family: 'Segoe UI', Roboto, sans-serif !important;
@@ -44,7 +56,7 @@ st.markdown("""
         color: #475569 !important;
     }
 
-    /* 3. TARJETAS DE KPIS */
+    /* 4. TARJETAS DE KPIS */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         padding: 16px !important;
@@ -62,7 +74,7 @@ st.markdown("""
         font-weight: 800 !important;
     }
 
-    /* 4. BOTONES PRIMARIOS Y DESCARGA EXCEL */
+    /* 5. BOTONES PRIMARIOS Y DESCARGA EXCEL */
     div.stButton > button, div.stDownloadButton > button {
         background-color: #00a0e9 !important;
         color: #ffffff !important;
@@ -78,7 +90,18 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* 5. ESTILO DE LA TABLA DE COMENTARIOS */
+    /* 6. CORRECCIÓN DE INPUTS Y BUSCADORES (MODO CLARO) */
+    div[data-baseweb="input"] > div, 
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+    input {
+        color: #0f172a !important;
+    }
+
+    /* 7. ESTILO DE LA TABLA DE COMENTARIOS */
     div[data-testid="stDataFrame"] {
         background-color: #ffffff !important;
         border-radius: 10px !important;
@@ -86,7 +109,7 @@ st.markdown("""
         padding: 5px !important;
     }
 
-    /* 6. PESTAÑAS (TABS) */
+    /* 8. PESTAÑAS (TABS) */
     button[data-baseweb="tab"] {
         color: #475569 !important;
         font-weight: 700 !important;
@@ -103,7 +126,7 @@ st.title("🍦 Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
 st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción en App Store")
 
 # ==========================================
-# 2. BARRA LATERAL (Panel Claro)
+# 2. BARRA LATERAL
 # ==========================================
 st.sidebar.markdown("# 🍦 **Grido VoC**")
 st.sidebar.markdown("---")
@@ -177,7 +200,6 @@ df_actual['categoria'] = df_actual['content'].apply(categorizar_reclamo)
 
 color_map = {'Positivo': '#00a0e9', 'Neutro': '#94a3b8', 'Negativo': '#e30613'}
 
-# Configuración universal para textos oscuros en Plotly
 def aplicar_estilo_grafico(fig):
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
