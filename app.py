@@ -122,13 +122,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Encabezado Principal
-st.title("🍦 Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
-st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción en App Store")
+st.title("🍦 Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
+st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
 
 # ==========================================
 # 2. BARRA LATERAL
 # ==========================================
-st.sidebar.markdown("# 🍦 **Grido VoC**")
+st.sidebar.markdown("# **GRIDO - Voz del Cliente**")
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
@@ -366,7 +366,6 @@ with tab_explorador:
 # 7. EXPORTACIÓN
 # ==========================================
 st.markdown("---")
-st.subheader("📥 Exportación para Stakeholders")
 
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
