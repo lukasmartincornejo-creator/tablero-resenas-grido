@@ -4,10 +4,9 @@ import plotly.express as px
 from google_play_scraper import Sort, reviews_all
 from datetime import datetime, timedelta
 import io
-import re
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS NATIVOS
 # ==========================================
 st.set_page_config(
     page_title="Executive VoC Dashboard | Grido",
@@ -16,51 +15,61 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS con forzado de contraste alto
+# Estilos CSS corregidos (Modo Claro Forzado)
 st.markdown("""
     <style>
-    /* Forzar fondo general claro */
+    /* 1. FONDO PRINCIPAL Y PANEL LATERAL CLARO */
     .stApp {
         background-color: #f8fafc !important;
     }
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #cbd5e1 !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #002169 !important;
+    }
     
-    /* Textos generales */
-    h1, h2, h3, h4, h5, h6, label, p, span {
+    /* 2. TIPOGRAFÍA Y ENCABEZADOS DE ALTO CONTRASTE */
+    h1, h2, h3, h4, h5, h6 {
         color: #002169 !important;
         font-family: 'Segoe UI', Roboto, sans-serif !important;
+        font-weight: 800 !important;
     }
-    
-    /* Subtítulos y descripciones */
-    .stCaption, caption {
+    p, span, label {
+        color: #1e293b !important;
+        font-family: 'Segoe UI', Roboto, sans-serif !important;
+    }
+    .stCaption {
         color: #475569 !important;
     }
-    
-    /* Tarjetas de KPIs */
+
+    /* 3. TARJETAS DE KPIS */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         padding: 16px !important;
         border-radius: 12px !important;
-        border: 2px solid #e2e8f0 !important;
+        border: 2px solid #cbd5e1 !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     div[data-testid="stMetricLabel"] > div {
         color: #002169 !important;
-        font-size: 0.95rem !important;
+        font-size: 1rem !important;
         font-weight: 700 !important;
     }
     div[data-testid="stMetricValue"] > div {
         color: #e30613 !important;
         font-weight: 800 !important;
     }
-    
-    /* Botones primarios (Descargar Excel / Actualizar) */
+
+    /* 4. BOTONES PRIMARIOS Y DESCARGA EXCEL */
     div.stButton > button, div.stDownloadButton > button {
         background-color: #00a0e9 !important;
         color: #ffffff !important;
         border-radius: 8px !important;
         border: none !important;
         font-weight: bold !important;
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
         padding: 0.6rem 1.2rem !important;
         box-shadow: 0 4px 6px rgba(0, 160, 233, 0.2) !important;
     }
@@ -69,11 +78,18 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* Tabs / Pestañas */
+    /* 5. ESTILO DE LA TABLA DE COMENTARIOS */
+    div[data-testid="stDataFrame"] {
+        background-color: #ffffff !important;
+        border-radius: 10px !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 5px !important;
+    }
+
+    /* 6. PESTAÑAS (TABS) */
     button[data-baseweb="tab"] {
-        color: #334155 !important;
+        color: #475569 !important;
         font-weight: 700 !important;
-        font-size: 1rem !important;
     }
     button[aria-selected="true"] {
         color: #e30613 !important;
@@ -82,16 +98,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado Ejecutivo
+# Encabezado Principal
 st.title("🍦 Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
 st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción en App Store")
 
 # ==========================================
-# 2. BARRA LATERAL
+# 2. BARRA LATERAL (Panel Claro)
 # ==========================================
-st.sidebar.markdown("## 🍦 **Grido VoC**")
+st.sidebar.markdown("# 🍦 **Grido VoC**")
 st.sidebar.markdown("---")
-st.sidebar.header("🕹️ Panel de Control")
+st.sidebar.markdown("### 🕹️ Panel de Control")
 
 APP_ID = 'com.grido.app'
 dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
@@ -144,7 +160,6 @@ fecha_mes_actual = ahora - timedelta(days=30)
 fecha_mes_anterior = ahora - timedelta(days=60)
 df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
 
-# Función de clasificación temática del feedback
 def categorizar_reclamo(texto):
     texto = str(texto).lower()
     if any(k in texto for k in ['tarjeta', 'pago', 'cobro', 'mercado', 'dinero', 'precio', 'descuento']):
@@ -161,6 +176,18 @@ def categorizar_reclamo(texto):
 df_actual['categoria'] = df_actual['content'].apply(categorizar_reclamo)
 
 color_map = {'Positivo': '#00a0e9', 'Neutro': '#94a3b8', 'Negativo': '#e30613'}
+
+# Configuración universal para textos oscuros en Plotly
+def aplicar_estilo_grafico(fig):
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#0f172a', size=12),
+        xaxis=dict(title_font=dict(color='#002169', size=13), tickfont=dict(color='#0f172a')),
+        yaxis=dict(title_font=dict(color='#002169', size=13), tickfont=dict(color='#0f172a')),
+        legend=dict(font=dict(color='#0f172a'))
+    )
+    return fig
 
 # ==========================================
 # 5. TARJETAS DE KPIS COMPARATIVAS
@@ -189,7 +216,7 @@ kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% v
 st.markdown("---")
 
 # ==========================================
-# 6. PESTAÑAS Y GRÁFICOS
+# 6. PESTAÑAS Y GRÁFICOS INTERACTIVOS
 # ==========================================
 tab_volumen, tab_sentimiento, tab_categorias, tab_explorador = st.tabs([
     "📈 Tendencia y Volumen", 
@@ -210,13 +237,8 @@ with tab_volumen:
             color_discrete_map=color_map,
             barmode='stack', template="plotly_white"
         )
-        fig_line.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            xaxis_title="Fecha", 
-            yaxis_title="Cantidad de Reseñas", 
-            legend_title="Sentimiento"
-        )
+        fig_line = aplicar_estilo_grafico(fig_line)
+        fig_line.update_layout(xaxis_title="Fecha", yaxis_title="Cantidad de Reseñas", legend_title="Sentimiento")
         st.plotly_chart(fig_line, use_container_width=True)
 
 # --- TAB 2: COMPARATIVA ---
@@ -230,7 +252,7 @@ with tab_sentimiento:
             df, names='sentimiento', color='sentimiento',
             color_discrete_map=color_map, hole=0.4, template="plotly_white"
         )
-        fig_pie_h.update_layout(paper_bgcolor='rgba(0,0,0,0)')
+        fig_pie_h = aplicar_estilo_grafico(fig_pie_h)
         fig_pie_h.update_traces(textinfo='percent+label')
         st.plotly_chart(fig_pie_h, use_container_width=True)
 
@@ -241,7 +263,7 @@ with tab_sentimiento:
                 df_mes_anterior, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_m.update_layout(paper_bgcolor='rgba(0,0,0,0)')
+            fig_pie_m = aplicar_estilo_grafico(fig_pie_m)
             fig_pie_m.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_m, use_container_width=True)
 
@@ -252,11 +274,11 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_s.update_layout(paper_bgcolor='rgba(0,0,0,0)')
+            fig_pie_s = aplicar_estilo_grafico(fig_pie_s)
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
-# --- TAB 3: CATEGORÍAS DE FRICCIÓN (NUEVO) ---
+# --- TAB 3: CATEGORÍAS DE FRICCIÓN ---
 with tab_categorias:
     st.subheader("Categorización de Temas Recurrentes en el Periodo")
     col_cat1, col_cat2 = st.columns(2)
@@ -271,7 +293,8 @@ with tab_categorias:
             color='Categoría', color_discrete_sequence=px.colors.qualitative.Bold,
             template="plotly_white"
         )
-        fig_cat.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        fig_cat = aplicar_estilo_grafico(fig_cat)
+        fig_cat.update_layout(showlegend=False)
         st.plotly_chart(fig_cat, use_container_width=True)
         
     with col_cat2:
@@ -285,10 +308,11 @@ with tab_categorias:
             color='Estrellas', color_discrete_sequence=['#e30613', '#f39c12', '#00a0e9', '#2ecc71', '#002169'],
             template="plotly_white"
         )
-        fig_score.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        fig_score = aplicar_estilo_grafico(fig_score)
+        fig_score.update_layout(showlegend=False)
         st.plotly_chart(fig_score, use_container_width=True)
 
-# --- TAB 4: EXPLORADOR DE COMENTARIOS (NUEVO) ---
+# --- TAB 4: EXPLORADOR DE COMENTARIOS ---
 with tab_explorador:
     st.subheader("Explorador Directo de Reseñas de Clientes")
     
