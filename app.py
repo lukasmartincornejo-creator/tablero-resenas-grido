@@ -8,43 +8,93 @@ import matplotlib.pyplot as plt
 import io
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
+# 1. CONFIGURACIÓN DE PÁGINA Y MARCA GRIDO
 # ==========================================
 st.set_page_config(
-    page_title="Executive Dashboard | Grido Reviews",
-    page_icon="🍦",
+    page_title="VoC Dashboard | Grido",
+    page_icon="https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilo en CSS adaptado para asegurar contraste y visibilidad perfecta en Dark/Light mode
+# Estilo de Grido
 st.markdown("""
     <style>
+    /* Fondo principal y fuentes */
+    .stApp {
+        background-color: #f4f6f9;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    /* Barra lateral */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e2e8f0;
+    }
+    
+    /* Encabezados y títulos */
+    h1, h2, h3 {
+        color: #002169 !important; /* Azul Grido */
+        font-weight: 700 !important;
+    }
+    
+    /* Tarjetas de Métricas (KPIs) */
     div[data-testid="stMetric"] {
-        background-color: #1e293b !important;
-        padding: 15px !important;
-        border-radius: 10px !important;
-        border: 1px solid #334155 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        background-color: #ffffff !important;
+        padding: 18px !important;
+        border-radius: 12px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 12px rgba(0, 33, 105, 0.05) !important;
     }
     div[data-testid="stMetricLabel"] {
-        color: #94a3b8 !important;
-        font-weight: 600 !important;
+        color: #002169 !important;
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
     }
     div[data-testid="stMetricValue"] {
-        color: #f8fafc !important;
+        color: #e30613 !important; /* Rojo Grido */
+        font-weight: 800 !important;
+    }
+    
+    /* Botones primarios (Celeste Grido) */
+    div.stButton > button {
+        background-color: #00a0e9 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        border: none !important;
         font-weight: bold !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background-color: #0080c0 !important;
+        box-shadow: 0 4px 8px rgba(0, 160, 233, 0.3) !important;
+    }
+
+    /* Pestañas (Tabs) */
+    button[data-baseweb="tab"] {
+        color: #002169 !important;
+        font-weight: 600 !important;
+    }
+    button[aria-selected="true"] {
+        border-bottom-color: #e30613 !important; /* Línea roja Grido */
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🍦 Dashboard Ejecutivo: Monitoreo de Voz del Cliente (VoC)")
-st.caption("Análisis comparativo automatizado de experiencia de usuario y sentimiento en Google Play Store")
+# Logo Oficial de Grido
+col_logo, col_titulo = st.columns([1, 6])
+with col_logo:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png", width=120)
+with col_titulo:
+    st.title("Dashboard Ejecutivo: Monitoreo Voz del Cliente (VoC)")
+    st.caption("Plataforma de análisis de experiencia de usuario y sentimiento en tiempo real")
 
 # ==========================================
 # 2. BARRA LATERAL (CONTROLES)
 # ==========================================
-st.sidebar.image("https://img.icons8.com/color/96/ice-cream-cone.png", width=60)
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png", width=140)
+st.sidebar.markdown("---")
 st.sidebar.header("🕹️ Panel de Control")
 
 APP_ID = 'com.grido.app'
@@ -77,7 +127,7 @@ def cargar_datos(app_id):
         df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
     return df
 
-with st.spinner("Descargando e indexando reseñas..."):
+with st.spinner("Descargando información de Google Play Store..."):
     df = cargar_datos(APP_ID)
 
 if df.empty:
@@ -91,19 +141,18 @@ ahora = datetime.now()
 fecha_corte_actual = ahora - timedelta(days=dias_analisis)
 fecha_corte_anterior = fecha_corte_actual - timedelta(days=dias_analisis)
 
-# Periodo Actual vs Periodo Anterior equivalente
 df_actual = df[(df['at'] >= fecha_corte_actual) & (df['at'] <= ahora)].copy()
 df_anterior = df[(df['at'] >= fecha_corte_anterior) & (df['at'] < fecha_corte_actual)].copy()
 
-# Periodo de Mes Anterior (30 a 60 días atrás)
 fecha_mes_actual = ahora - timedelta(days=30)
 fecha_mes_anterior = ahora - timedelta(days=60)
 df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
 
-color_map = {'Positivo': '#2ecc71', 'Neutro': '#f39c12', 'Negativo': '#e74c3c'}
+# Paleta de colores ajustada a la marca
+color_map = {'Positivo': '#00a0e9', 'Neutro': '#a0aec0', 'Negativo': '#e30613'}
 
 # ==========================================
-# 5. TARJETAS DE KPIS CON COMPARATIVA (DELTAS)
+# 5. TARJETAS DE KPIS COMPARATIVAS
 # ==========================================
 st.markdown("---")
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -129,7 +178,7 @@ kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% v
 st.markdown("---")
 
 # ==========================================
-# 6. ESTRUCTURA EN PESTAÑAS (TABS)
+# 6. PESTAÑAS Y GRÁFICOS
 # ==========================================
 tab_volumen, tab_sentimiento, tab_palabras = st.tabs([
     "📈 Tendencia y Volumen", 
@@ -137,9 +186,9 @@ tab_volumen, tab_sentimiento, tab_palabras = st.tabs([
     "☁️ Diagnóstico Cualitativo (Nubes)"
 ])
 
-# --- TAB 1: TENDENCIA TEMPORAL ---
+# --- TAB 1: TENDENCIA ---
 with tab_volumen:
-    st.subheader(f"Evolución Diaria del Sentimiento (Últimos {dias_analisis} días)")
+    st.subheader(f"Evolución Diaria de Opiniones (Últimos {dias_analisis} días)")
     if not df_actual.empty:
         df_actual['fecha'] = df_actual['at'].dt.date
         df_time = df_actual.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
@@ -151,10 +200,8 @@ with tab_volumen:
         )
         fig_line.update_layout(xaxis_title="Fecha", yaxis_title="Cantidad de Reseñas", legend_title="Sentimiento")
         st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.info("No hay datos suficientes en el rango seleccionado.")
 
-# --- TAB 2: DISTRIBUCIÓN Y COMPARATIVA DE TORTAS ---
+# --- TAB 2: COMPARATIVA ---
 with tab_sentimiento:
     st.subheader("Análisis Comparativo por Periodos")
     col_g1, col_g2, col_g3 = st.columns(3)
@@ -177,8 +224,6 @@ with tab_sentimiento:
             )
             fig_pie_m.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_m, use_container_width=True)
-        else:
-            st.write("Sin datos del mes anterior.")
 
     with col_g3:
         st.markdown(f"##### 🚀 Periodo Actual ({dias_analisis} días)")
@@ -189,8 +234,6 @@ with tab_sentimiento:
             )
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
-        else:
-            st.write("Sin datos del periodo actual.")
 
 # --- TAB 3: NUBES DE PALABRAS ---
 with tab_palabras:
@@ -207,18 +250,16 @@ with tab_palabras:
     c1, c2 = st.columns(2)
     
     with c1:
-        st.markdown("##### 🟢 Atributos Positivos Valorados")
+        st.markdown("##### 💙 Atributos Positivos Valorados")
         df_p = df_actual[df_actual['sentimiento'] == 'Positivo']
         if not df_p.empty and df_p['content'].dropna().str.len().sum() > 0:
             txt_p = " ".join(review for review in df_p['content'].dropna().astype(str))
-            wc_p = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Greens').generate(txt_p)
+            wc_p = WordCloud(width=800, height=450, background_color='white', stopwords=stopwords_pro, colormap='Blues').generate(txt_p)
             
             fig_wc1, ax_wc1 = plt.subplots(figsize=(8, 4.5))
             ax_wc1.imshow(wc_p, interpolation='bilinear')
             ax_wc1.axis("off")
             st.pyplot(fig_wc1)
-        else:
-            st.info("Sin datos suficientes.")
 
     with c2:
         st.markdown("##### 🔴 Puntos de Fricción (Atención Requerida)")
@@ -231,11 +272,9 @@ with tab_palabras:
             ax_wc2.imshow(wc_n, interpolation='bilinear')
             ax_wc2.axis("off")
             st.pyplot(fig_wc2)
-        else:
-            st.info("Sin datos suficientes.")
 
 # ==========================================
-# 7. EXPORTACIÓN DE DATOS
+# 7. EXPORTACIÓN
 # ==========================================
 st.markdown("---")
 st.subheader("📥 Exportar Datos")
