@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo de Grido
+# Estilos CSS personalizados basados en la UI de Grido
 st.markdown("""
     <style>
     /* Fondo principal y fuentes */
@@ -82,7 +82,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Logo Oficial de Grido
+# Header con Logo Oficial de Grido
 col_logo, col_titulo = st.columns([1, 6])
 with col_logo:
     st.image("https://upload.wikimedia.org/wikipedia/commons/2/22/Logo_Grido.png", width=120)
