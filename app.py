@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS que fuerza el estilo claro en tablas e inputs
+# Estilos CSS de corrección visual radical para tabla e inputs claros
 st.markdown("""
     <style>
     /* 1. OCULTAR BOTÓN DE COLAPSO DEL SIDEBAR */
@@ -89,25 +89,36 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* 6. CORRECCIÓN DE INPUTS Y BUSCADORES */
-    div[data-baseweb="input"] {
+    /* 6. CORRECCIÓN RADICAL DE CAJAS DE BÚSQUEDA, MULTISELECT E INPUTS */
+    div[data-baseweb="input"], 
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="base-input"],
+    div[data-baseweb="select"],
+    div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
-        border-radius: 8px !important;
+        color: #0f172a !important;
+        border-color: #cbd5e1 !important;
     }
     div[data-baseweb="input"] input {
         color: #0f172a !important;
         background-color: #ffffff !important;
+        font-weight: 600 !important;
     }
-    div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
+    /* Texto sugerido (placeholder) */
+    ::placeholder {
+        color: #64748b !important;
+        opacity: 1 !important;
     }
 
-    /* 7. ESTILO DE LA TABLA Y CABECERAS */
-    div[data-testid="stDataFrame"] {
+    /* 7. BLANQUEO TOTAL DE LA TABLA (GLIDE DATA GRID) */
+    div[data-testid="stDataFrame"],
+    div[data-testid="stDataFrame"] > div,
+    div[data-testid="stTable"] {
         background-color: #ffffff !important;
         border-radius: 10px !important;
         border: 1px solid #cbd5e1 !important;
+        --bg-color: #ffffff !important;
+        --text-color: #0f172a !important;
     }
     div[data-testid="stDataFrame"] * {
         color: #0f172a !important;
