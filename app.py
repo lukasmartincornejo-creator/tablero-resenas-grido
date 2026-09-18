@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS de corrección visual radical para tabla e inputs claros
+# Estilos CSS con forzado estricto sobre clases internas de Streamlit
 st.markdown("""
     <style>
     /* 1. OCULTAR BOTÓN DE COLAPSO DEL SIDEBAR */
@@ -25,8 +25,6 @@ st.markdown("""
     div[data-testid="collapsedControl"] {
         display: none !important;
         visibility: hidden !important;
-        width: 0px !important;
-        height: 0px !important;
     }
 
     /* 2. FONDO Y ESTRUCTURA GENERAL */
@@ -50,9 +48,6 @@ st.markdown("""
     p, span, label {
         color: #1e293b !important;
         font-family: 'Segoe UI', Roboto, sans-serif !important;
-    }
-    .stCaption {
-        color: #475569 !important;
     }
 
     /* 4. TARJETAS DE KPIS */
@@ -82,46 +77,55 @@ st.markdown("""
         font-weight: bold !important;
         font-size: 0.95rem !important;
         padding: 0.6rem 1.2rem !important;
-        box-shadow: 0 4px 6px rgba(0, 160, 233, 0.2) !important;
-    }
-    div.stButton > button:hover, div.stDownloadButton > button:hover {
-        background-color: #0080c0 !important;
-        color: #ffffff !important;
     }
 
-    /* 6. CORRECCIÓN RADICAL DE CAJAS DE BÚSQUEDA, MULTISELECT E INPUTS */
-    div[data-baseweb="input"], 
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="base-input"],
-    div[data-baseweb="select"],
-    div[data-baseweb="select"] > div {
+    /* 6. SOBRESCRITURA DE INPUTS Y BUSCADORES (FORZADO MODO CLARO) */
+    .stTextInput input, .stSelectbox div, .stMultiSelect div {
         background-color: #ffffff !important;
         color: #0f172a !important;
-        border-color: #cbd5e1 !important;
+        border-color: #94a3b8 !important;
     }
-    div[data-baseweb="input"] input {
+    div[data-baseweb="select"] span {
         color: #0f172a !important;
-        background-color: #ffffff !important;
-        font-weight: 600 !important;
     }
-    /* Texto sugerido (placeholder) */
-    ::placeholder {
-        color: #64748b !important;
-        opacity: 1 !important;
+    div[data-baseweb="tag"] {
+        background-color: #e2e8f0 !important;
+    }
+    div[data-baseweb="tag"] span {
+        color: #0f172a !important;
     }
 
-    /* 7. BLANQUEO TOTAL DE LA TABLA (GLIDE DATA GRID) */
-    div[data-testid="stDataFrame"],
-    div[data-testid="stDataFrame"] > div,
-    div[data-testid="stTable"] {
+    /* 7. ESTILO TABLA HTML NATIVA BLANCA */
+    .tabla-blanca-container {
         background-color: #ffffff !important;
-        border-radius: 10px !important;
-        border: 1px solid #cbd5e1 !important;
-        --bg-color: #ffffff !important;
-        --text-color: #0f172a !important;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        padding: 10px;
+        overflow-x: auto;
     }
-    div[data-testid="stDataFrame"] * {
+    .tabla-blanca {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #ffffff !important;
         color: #0f172a !important;
+        font-family: sans-serif;
+        font-size: 0.9rem;
+    }
+    .tabla-blanca th {
+        background-color: #f1f5f9 !important;
+        color: #002169 !important;
+        font-weight: 700;
+        text-align: left;
+        padding: 12px;
+        border-bottom: 2px solid #cbd5e1;
+    }
+    .tabla-blanca td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #0f172a !important;
+    }
+    .tabla-blanca tr:hover {
+        background-color: #f8fafc !important;
     }
 
     /* 8. PESTAÑAS (TABS) */
@@ -364,7 +368,7 @@ with tab_categorias:
         fig_score.update_layout(showlegend=False)
         st.plotly_chart(fig_score, use_container_width=True)
 
-# --- TAB 4: EXPLORADOR DE COMENTARIOS ---
+# --- TAB 4: EXPLORADOR DE COMENTARIOS CON TABLA HTML BLANCA PURA ---
 with tab_explorador:
     st.subheader("Explorador Directo de Reseñas de Clientes")
     
@@ -378,19 +382,14 @@ with tab_explorador:
     if busqueda_texto:
         df_filtrado = df_filtrado[df_filtrado['content'].str.contains(busqueda_texto, case=False, na=False)]
         
-    st.dataframe(
-        df_filtrado[['at', 'userName', 'score', 'sentimiento', 'categoria', 'content']].sort_values(by='at', ascending=False),
-        column_config={
-            "at": "Fecha",
-            "userName": "Usuario",
-            "score": "Rating",
-            "sentimiento": "Sentimiento",
-            "categoria": "Categoría",
-            "content": "Comentario Completo"
-        },
-        use_container_width=True,
-        hide_index=True
-    )
+    # Selección y formato de columnas
+    df_tabla = df_filtrado[['at', 'userName', 'score', 'sentimiento', 'categoria', 'content']].sort_values(by='at', ascending=False).head(50).copy()
+    df_tabla['at'] = df_tabla['at'].dt.strftime('%Y-%m-%d %H:%M')
+    df_tabla.columns = ['Fecha', 'Usuario', 'Rating', 'Sentimiento', 'Categoría', 'Comentario Completo']
+
+    # Renderizado mediante Tabla HTML nativa para romper el Shadow DOM oscuro
+    html_tabla = df_tabla.to_html(classes='tabla-blanca', index=False, escape=True)
+    st.markdown(f'<div class="tabla-blanca-container">{html_tabla}</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 7. EXPORTACIÓN
