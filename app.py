@@ -16,10 +16,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS de corrección visual
+# CSS que fuerza el estilo claro en tablas e inputs
 st.markdown("""
     <style>
-    /* 1. OCULTAR COMPLETAMENTE EL BOTÓN DE PLEGAR/COLAPSAR EL SIDEBAR Y SU TEXTO */
+    /* 1. OCULTAR BOTÓN DE COLAPSO DEL SIDEBAR */
     button[data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapseButton"],
     div[data-testid="collapsedControl"] {
@@ -89,23 +89,28 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* 6. CORRECCIÓN DE INPUTS Y BUSCADORES (MODO CLARO) */
-    div[data-baseweb="input"] > div, 
+    /* 6. CORRECCIÓN DE INPUTS Y BUSCADORES */
+    div[data-baseweb="input"] {
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+    }
+    div[data-baseweb="input"] input {
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+    }
     div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-    }
-    input {
-        color: #0f172a !important;
     }
 
-    /* 7. ESTILO DE LA TABLA DE COMENTARIOS */
+    /* 7. ESTILO DE LA TABLA Y CABECERAS */
     div[data-testid="stDataFrame"] {
         background-color: #ffffff !important;
         border-radius: 10px !important;
         border: 1px solid #cbd5e1 !important;
-        padding: 5px !important;
+    }
+    div[data-testid="stDataFrame"] * {
+        color: #0f172a !important;
     }
 
     /* 8. PESTAÑAS (TABS) */
@@ -310,7 +315,7 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_s = aplicar_estilo_grafico(fig_pie_s) # <-- APLICADO PARA EVITAR FONDO NEGRO
+            fig_pie_s = aplicar_estilo_grafico(fig_pie_s)
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
