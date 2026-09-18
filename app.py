@@ -121,11 +121,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Encabezado Principal con Logo
+RUTA_LOGO = "logo grido.png"
+
 col_h_logo, col_h_title = st.columns([1, 5])
 
 with col_h_logo:
-    if os.path.exists("logo_grido.png"):
-        st.image("logo_grido.png", width=140)
+    if os.path.exists(RUTA_LOGO):
+        st.image(RUTA_LOGO, width=130)
     else:
         st.markdown("## 🍦")
 
@@ -136,8 +138,8 @@ with col_h_title:
 # ==========================================
 # 2. BARRA LATERAL
 # ==========================================
-if os.path.exists("logo_grido.png"):
-    st.sidebar.image("logo_grido.png", use_container_width=True)
+if os.path.exists(RUTA_LOGO):
+    st.sidebar.image(RUTA_LOGO, use_container_width=True)
 else:
     st.sidebar.markdown("# **GRIDO - Voz del Cliente**")
 
@@ -308,7 +310,7 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_s = aplicar_estilo_grafico(fig_pie_s)
+            fig_pie_s = aplicar_estilo_grafico(fig_pie_s) # <-- APLICADO PARA EVITAR FONDO NEGRO
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
