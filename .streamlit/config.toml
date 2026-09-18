@@ -1,0 +1,8 @@
+Ini, TOML
+[theme]
+primaryColor="#00a0e9"
+backgroundColor="#f8fafc"
+secondaryBackgroundColor="#ffffff"
+textColor="#0f172a"
+font="sans serif"
+base="light"
