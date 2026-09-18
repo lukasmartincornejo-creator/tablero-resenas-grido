@@ -4,6 +4,7 @@ import plotly.express as px
 from google_play_scraper import Sort, reviews_all
 from datetime import datetime, timedelta
 import io
+import os
 
 # ==========================================
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
@@ -119,14 +120,27 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado Principal
-st.title("🍦 Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
-st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
+# Encabezado Principal con Logo
+col_h_logo, col_h_title = st.columns([1, 5])
+
+with col_h_logo:
+    if os.path.exists("logo_grido.png"):
+        st.image("logo_grido.png", width=140)
+    else:
+        st.markdown("## 🍦")
+
+with col_h_title:
+    st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
+    st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
 
 # ==========================================
 # 2. BARRA LATERAL
 # ==========================================
-st.sidebar.markdown("# **GRIDO - Voz del Cliente**")
+if os.path.exists("logo_grido.png"):
+    st.sidebar.image("logo_grido.png", use_container_width=True)
+else:
+    st.sidebar.markdown("# **GRIDO - Voz del Cliente**")
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
@@ -294,7 +308,7 @@ with tab_sentimiento:
                 df_actual, names='sentimiento', color='sentimiento',
                 color_discrete_map=color_map, hole=0.4, template="plotly_white"
             )
-            fig_pie_s = aplicar_estilo_grafico(fig_pie_s) # <-- APLICADO PARA EVITAR FONDO NEGRO
+            fig_pie_s = aplicar_estilo_grafico(fig_pie_s)
             fig_pie_s.update_traces(textinfo='percent+label')
             st.plotly_chart(fig_pie_s, use_container_width=True)
 
