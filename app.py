@@ -151,12 +151,8 @@ with col_h_logo:
     else:
         st.markdown("## 🍦")
 
-with col_h_title:
-    st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
-    st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
-
 # ==========================================
-# 2. BARRA LATERAL
+# 2. BARRA LATERAL (CONTROLES Y SELECTOR DE PAÍS)
 # ==========================================
 if os.path.exists(RUTA_LOGO):
     st.sidebar.image(RUTA_LOGO, use_container_width=True)
@@ -166,23 +162,40 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
-APP_ID = 'com.grido.app'
+# Selector Multimercado
+PAISES = {
+    "🇦🇷 Argentina": "ar",
+    "🇨🇱 Chile": "cl",
+    "🇺🇾 Uruguay": "uy",
+    "🇵🇾 Paraguay": "py",
+    "🇵🇪 Perú": "pe"
+}
+pais_seleccionado = st.sidebar.selectbox("Seleccionar Mercado/País:", list(PAISES.keys()))
+pais_codigo = PAISES[pais_seleccionado]
+
 dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
 
 if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
+# Subtítulo dinámico en el encabezado principal
+with col_h_title:
+    st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
+    st.markdown(f"**Grido {pais_seleccionado}** | Análisis automatizado de experiencia de usuario y fricción - App Store")
+
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ DE DATOS
+# 3. EXTRACCIÓN Y CACHÉ DE DATOS MULTIPAÍS
 # ==========================================
+APP_ID = 'com.grido.app'
+
 @st.cache_data(ttl=3600, show_spinner=False)
-def cargar_datos(app_id):
+def cargar_datos(app_id, country_code):
     resenas = reviews_all(
         app_id,
         sleep_milliseconds=0,
         lang='es',
-        country='ar',
+        country=country_code,
         sort=Sort.NEWEST
     )
     df = pd.DataFrame(resenas)
@@ -196,11 +209,11 @@ def cargar_datos(app_id):
         df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
     return df
 
-with st.spinner("Descargando datos de Google Play Store..."):
-    df = cargar_datos(APP_ID)
+with st.spinner(f"Descargando datos de Google Play Store ({pais_seleccionado})..."):
+    df = cargar_datos(APP_ID, pais_codigo)
 
 if df.empty:
-    st.error("No se pudieron recuperar datos de Play Store.")
+    st.warning(f"No se encontraron reseñas registradas para Grido en {pais_seleccionado} o no hay datos disponibles en Play Store actualmente.")
     st.stop()
 
 # ==========================================
@@ -283,7 +296,7 @@ tab_volumen, tab_sentimiento, tab_categorias, tab_explorador = st.tabs([
 
 # --- TAB 1: TENDENCIA ---
 with tab_volumen:
-    st.subheader(f"Evolución Diaria de Opiniones (Últimos {dias_analisis} días)")
+    st.subheader(f"Evolución Diaria de Opiniones en {pais_seleccionado} (Últimos {dias_analisis} días)")
     if not df_actual.empty:
         df_actual['fecha'] = df_actual['at'].dt.date
         df_time = df_actual.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
@@ -370,7 +383,7 @@ with tab_categorias:
 
 # --- TAB 4: EXPLORADOR DE COMENTARIOS CON TABLA HTML BLANCA PURA ---
 with tab_explorador:
-    st.subheader("Explorador Directo de Reseñas de Clientes")
+    st.subheader(f"Explorador Directo de Reseñas de Clientes ({pais_seleccionado})")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
@@ -403,8 +416,8 @@ with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df_anterior.to_excel(writer, sheet_name='Periodo_Anterior_Eq', index=False)
 
 st.download_button(
-    label="📄 Descargar Dataset Completo en Excel (.xlsx)",
+    label=f"📄 Descargar Dataset Completo ({pais_seleccionado}) en Excel (.xlsx)",
     data=buffer.getvalue(),
-    file_name=f"Reporte_VoC_Grido_Comparativo_{datetime.now().strftime('%Y%m%d')}.xlsx",
+    file_name=f"Reporte_VoC_Grido_{pais_codigo}_{datetime.now().strftime('%Y%m%d')}.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
