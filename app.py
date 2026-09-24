@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from google_play_scraper import Sort, reviews
+from google_play_scraper import Sort, reviews_all
 from datetime import datetime, timedelta
 import io
 import os
@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS con forzado estricto sobre clases internas de Streamlit
+# Estilos CSS con forzado estricto sobre clases internas de Streamlit y Calendario Blanco
 st.markdown("""
     <style>
     /* 1. OCULTAR BOTÓN DE COLAPSO DEL SIDEBAR */
@@ -79,11 +79,11 @@ st.markdown("""
         padding: 0.6rem 1.2rem !important;
     }
 
-    /* 6. SOBRESCRITURA DE INPUTS, BUSCADORES Y CALENDARIO POPUP */
+    /* 6. FORZADO TOTAL DE CALENDARIO E INPUTS A MODO CLARO (BLANCO PURAS) */
     .stTextInput input, .stSelectbox div, .stMultiSelect div, .stDateInput input {
         background-color: #ffffff !important;
         color: #0f172a !important;
-        border-color: #94a3b8 !important;
+        border-color: #cbd5e1 !important;
     }
     div[data-baseweb="select"] span {
         color: #0f172a !important;
@@ -95,15 +95,20 @@ st.markdown("""
         color: #0f172a !important;
     }
 
-    /* ESTILOS ESPECÍFICOS PARA EL DESPLEGABLE DEL CALENDARIO */
+    /* REGLAS ABSOLUTAS PARA EL POPUP DESPLEGABLE DEL CALENDARIO (BASEWEB) */
     div[data-baseweb="popover"],
+    div[data-baseweb="popover"] *,
     div[data-baseweb="calendar"],
-    div[data-baseweb="calendar"] * {
+    div[data-baseweb="calendar"] *,
+    div[role="dialog"],
+    div[role="dialog"] * {
         background-color: #ffffff !important;
         color: #0f172a !important;
     }
-    div[data-baseweb="calendar"] header {
+    div[data-baseweb="calendar"] header,
+    div[data-baseweb="calendar"] header * {
         background-color: #f1f5f9 !important;
+        color: #002169 !important;
     }
     div[data-baseweb="calendar"] button {
         color: #0f172a !important;
@@ -170,7 +175,7 @@ with col_h_logo:
         st.markdown("## 🍦")
 
 # ==========================================
-# 2. BARRA LATERAL (MULTIMERCADO Y PERIODO)
+# 2. BARRA LATERAL (FILTROS TEMPORALES)
 # ==========================================
 if os.path.exists(RUTA_LOGO):
     st.sidebar.image(RUTA_LOGO, use_container_width=True)
@@ -180,18 +185,6 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
-# Selector de Países
-PAISES = {
-    "🇦🇷 Argentina": "ar",
-    "🇨🇱 Chile": "cl",
-    "🇺🇾 Uruguay": "uy",
-    "🇵🇾 Paraguay": "py",
-    "🇵🇪 Perú": "pe"
-}
-pais_seleccionado = st.sidebar.selectbox("Seleccionar Mercado/País:", list(PAISES.keys()))
-pais_codigo = PAISES[pais_seleccionado]
-
-st.sidebar.markdown("---")
 st.sidebar.markdown("#### ⏳ Selección de Periodo")
 
 usar_calendario = st.sidebar.checkbox("📆 Habilitar rango con calendario")
@@ -222,41 +215,38 @@ if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True
 
 with col_h_title:
     st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
-    st.markdown(f"**Grido {pais_seleccionado}** | Análisis del **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}** ({dias_analisis} días)")
+    st.markdown(f"**Grido Argentina** | Análisis del **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}** ({dias_analisis} días)")
 
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ DINÁMICO POR PAÍS
+# 3. EXTRACCIÓN Y CACHÉ DE DATOS (ARGENTINA)
 # ==========================================
 APP_ID = 'com.grido.app'
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def cargar_datos_por_pais(app_id, country_code):
-    try:
-        result, _ = reviews(
-            app_id,
-            lang='es',
-            country=country_code,
-            sort=Sort.NEWEST,
-            count=1000
-        )
-        df = pd.DataFrame(result)
-        if not df.empty:
-            df['at'] = pd.to_datetime(df['at'])
-            def clasificar(score):
-                if score <= 2: return 'Negativo'
-                if score == 3: return 'Neutro'
-                return 'Positivo'
-            df['sentimiento'] = df['score'].apply(clasificar)
-            df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
-        return df
-    except Exception:
-        return pd.DataFrame()
+def cargar_datos(app_id):
+    resenas = reviews_all(
+        app_id,
+        sleep_milliseconds=0,
+        lang='es',
+        country='ar',
+        sort=Sort.NEWEST
+    )
+    df = pd.DataFrame(resenas)
+    if not df.empty:
+        df['at'] = pd.to_datetime(df['at'])
+        def clasificar(score):
+            if score <= 2: return 'Negativo'
+            if score == 3: return 'Neutro'
+            return 'Positivo'
+        df['sentimiento'] = df['score'].apply(clasificar)
+        df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
+    return df
 
-with st.spinner(f"Descargando datos de Google Play Store para {pais_seleccionado}..."):
-    df = cargar_datos_por_pais(APP_ID, pais_codigo)
+with st.spinner("Descargando datos de Google Play Store..."):
+    df = cargar_datos(APP_ID)
 
 if df.empty:
-    st.warning(f"No se encontraron reseñas específicas registradas para Grido en {pais_seleccionado}. Intenta seleccionando otro país.")
+    st.error("No se pudieron recuperar datos de Play Store.")
     st.stop()
 
 # ==========================================
@@ -292,7 +282,6 @@ df_actual['categoria'] = df_actual['content'].apply(categorizar_reclamo)
 
 color_map = {'Positivo': '#00a0e9', 'Neutro': '#94a3b8', 'Negativo': '#e30613'}
 
-# FUNCIÓN DE ESTILO DE GRÁFICOS CON TEXTOS OSCUROS DE ALTO CONTRASTE
 def aplicar_estilo_grafico(fig):
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
@@ -332,7 +321,7 @@ csat_actual = (df_actual['sentimiento'] == 'Positivo').mean() * 100 if not df_ac
 csat_anterior = (df_anterior['sentimiento'] == 'Positivo').mean() * 100 if not df_anterior.empty else 0
 delta_csat = csat_actual - csat_anterior
 
-kpi1.metric("Reseñas Extraídas", f"{total_historico:,}")
+kpi1.metric("Reseñas Históricas", f"{total_historico:,}")
 kpi2.metric(f"Reseñas ({dias_analisis}d)", f"{vol_actual:,}", delta=f"{delta_vol:+} vs p. anterior")
 kpi3.metric("Rating Promedio", f"{rating_actual:.2f} ⭐", delta=f"{delta_rating:+.2f} ⭐ vs p. anterior")
 kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% vs p. anterior")
@@ -351,7 +340,7 @@ tab_volumen, tab_sentimiento, tab_categorias, tab_explorador = st.tabs([
 
 # --- TAB 1: TENDENCIA ---
 with tab_volumen:
-    st.subheader(f"Evolución Diaria en {pais_seleccionado} ({fecha_inicio.strftime('%d/%m')} al {fecha_fin.strftime('%d/%m/%Y')})")
+    st.subheader(f"Evolución Diaria de Opiniones ({fecha_inicio.strftime('%d/%m')} al {fecha_fin.strftime('%d/%m/%Y')})")
     if not df_actual.empty:
         df_actual['fecha'] = df_actual['at'].dt.date
         df_time = df_actual.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
@@ -368,11 +357,11 @@ with tab_volumen:
 
 # --- TAB 2: COMPARATIVA ---
 with tab_sentimiento:
-    st.subheader(f"Análisis Comparativo por Periodos ({pais_seleccionado})")
+    st.subheader("Análisis Comparativo por Periodos")
     col_g1, col_g2, col_g3 = st.columns(3)
     
     with col_g1:
-        st.markdown("##### 📜 Histórico Extraído")
+        st.markdown("##### 📜 Histórico Completo")
         fig_pie_h = px.pie(
             df, names='sentimiento', color='sentimiento',
             color_discrete_map=color_map, hole=0.4, template="plotly_white"
@@ -405,7 +394,7 @@ with tab_sentimiento:
 
 # --- TAB 3: CATEGORÍAS DE FRICCIÓN ---
 with tab_categorias:
-    st.subheader(f"Categorización de Temas Recurrentes ({pais_seleccionado})")
+    st.subheader("Categorización de Temas Recurrentes en el Periodo")
     col_cat1, col_cat2 = st.columns(2)
     
     with col_cat1:
@@ -441,7 +430,7 @@ with tab_categorias:
 
 # --- TAB 4: EXPLORADOR DE COMENTARIOS ---
 with tab_explorador:
-    st.subheader(f"Explorador Directo de Reseñas ({pais_seleccionado})")
+    st.subheader("Explorador Directo de Reseñas de Clientes")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
@@ -475,8 +464,8 @@ with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df_anterior.to_excel(writer, sheet_name='Periodo_Anterior_Eq', index=False)
 
 st.download_button(
-    label=f"📄 Descargar Dataset Completo ({pais_seleccionado}) en Excel (.xlsx)",
+    label="📄 Descargar Dataset Completo en Excel (.xlsx)",
     data=buffer.getvalue(),
-    file_name=f"Reporte_VoC_Grido_{pais_codigo}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+    file_name=f"Reporte_VoC_Grido_Comparativo_{datetime.now().strftime('%Y%m%d')}.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
