@@ -35,7 +35,7 @@ st.markdown("""
         background-color: #ffffff !important;
         border-right: 1px solid #cbd5e1 !important;
     }
-    section[data-testid="section-sidebar"] * {
+    section[data-testid="stSidebar"] * {
         color: #002169 !important;
     }
     
@@ -79,7 +79,7 @@ st.markdown("""
         padding: 0.6rem 1.2rem !important;
     }
 
-    /* 6. SOBRESCRITURA DE INPUTS Y BUSCADORES (FORZADO MODO CLARO) */
+    /* 6. SOBRESCRITURA DE INPUTS, BUSCADORES Y CALENDARIO POPUP (BLANCO FORZADO) */
     .stTextInput input, .stSelectbox div, .stMultiSelect div, .stDateInput input {
         background-color: #ffffff !important;
         color: #0f172a !important;
@@ -93,6 +93,24 @@ st.markdown("""
     }
     div[data-baseweb="tag"] span {
         color: #0f172a !important;
+    }
+
+    /* ESTILOS ESPECÍFICOS PARA EL DESPLEGABLE DEL CALENDARIO (ST.DATE_INPUT) */
+    div[data-baseweb="popover"],
+    div[data-baseweb="calendar"],
+    div[data-baseweb="calendar"] * {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    div[data-baseweb="calendar"] header {
+        background-color: #f1f5f9 !important;
+    }
+    div[data-baseweb="calendar"] button {
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+    }
+    div[data-baseweb="calendar"] button:hover {
+        background-color: #e2e8f0 !important;
     }
 
     /* 7. ESTILO TABLA HTML NATIVA BLANCA */
@@ -152,7 +170,7 @@ with col_h_logo:
         st.markdown("## 🍦")
 
 # ==========================================
-# 2. BARRA LATERAL (MULTIMERCADO Y FILTROS TEMPORALES)
+# 2. BARRA LATERAL (MULTIMERCADO Y PERIODO)
 # ==========================================
 if os.path.exists(RUTA_LOGO):
     st.sidebar.image(RUTA_LOGO, use_container_width=True)
@@ -176,33 +194,30 @@ pais_codigo = PAISES[pais_seleccionado]
 st.sidebar.markdown("---")
 st.sidebar.markdown("#### ⏳ Selección de Periodo")
 
-# Checkbox para alternar entre Slider y Calendario
-usar_calendario = st.sidebar.checkbox("📆 Personalizar rango con calendario")
+# Checkbox para habilitar/deshabilitar el uso de Calendario
+usar_calendario = st.sidebar.checkbox("📆 Habilitar rango con calendario")
 
 hoy = datetime.now().date()
 
 if usar_calendario:
-    # MODO CALENDARIO
+    # Modo Calendario
     hace_15_dias = hoy - timedelta(days=15)
     rango_fechas = st.sidebar.date_input(
-        "Seleccionar rango (Inicio - Fin):",
+        "Selecciona Rango (Inicio - Fin):",
         value=(hace_15_dias, hoy),
         max_value=hoy
     )
-    
     if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
         fecha_inicio, fecha_fin = rango_fechas
     else:
         fecha_inicio = hace_15_dias
         fecha_fin = hoy
-        
-    dias_diferencia = (fecha_fin - fecha_inicio).days + 1
+    dias_analisis = (fecha_fin - fecha_inicio).days + 1
 else:
-    # MODO SLIDER TRADICIONAL
-    dias_analisis = st.sidebar.slider("Periodo reciente (Días):", min_value=7, max_value=60, value=15)
+    # Modo Slider por defecto
+    dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
     fecha_fin = hoy
     fecha_inicio = hoy - timedelta(days=dias_analisis - 1)
-    dias_diferencia = dias_analisis
 
 if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True):
     st.cache_data.clear()
@@ -210,7 +225,7 @@ if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True
 
 with col_h_title:
     st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
-    st.markdown(f"**Grido {pais_seleccionado}** | Análisis del **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}** ({dias_diferencia} días)")
+    st.markdown(f"**Grido {pais_seleccionado}** | Análisis del **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}** ({dias_analisis} días)")
 
 # ==========================================
 # 3. EXTRACCIÓN Y CACHÉ DINÁMICO POR PAÍS
@@ -254,7 +269,7 @@ inicio_dt = datetime.combine(fecha_inicio, datetime.min.time())
 fin_dt = datetime.combine(fecha_fin, datetime.max.time())
 
 # Periodo equivalente anterior para cálculo de deltas
-inicio_anterior = inicio_dt - timedelta(days=dias_diferencia)
+inicio_anterior = inicio_dt - timedelta(days=dias_analisis)
 fin_anterior = inicio_dt - timedelta(seconds=1)
 
 df_actual = df[(df['at'] >= inicio_dt) & (df['at'] <= fin_dt)].copy()
@@ -312,7 +327,7 @@ csat_anterior = (df_anterior['sentimiento'] == 'Positivo').mean() * 100 if not d
 delta_csat = csat_actual - csat_anterior
 
 kpi1.metric("Reseñas Extraídas", f"{total_historico:,}")
-kpi2.metric(f"Reseñas ({dias_diferencia}d seleccionados)", f"{vol_actual:,}", delta=f"{delta_vol:+} vs p. anterior")
+kpi2.metric(f"Reseñas ({dias_analisis}d)", f"{vol_actual:,}", delta=f"{delta_vol:+} vs p. anterior")
 kpi3.metric("Rating Promedio", f"{rating_actual:.2f} ⭐", delta=f"{delta_rating:+.2f} ⭐ vs p. anterior")
 kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% vs p. anterior")
 
@@ -373,7 +388,7 @@ with tab_sentimiento:
             st.plotly_chart(fig_pie_m, use_container_width=True)
 
     with col_g3:
-        st.markdown(f"##### 🚀 Periodo Seleccionado ({dias_diferencia}d)")
+        st.markdown(f"##### 🚀 Periodo Seleccionado ({dias_analisis}d)")
         if not df_actual.empty:
             fig_pie_s = px.pie(
                 df_actual, names='sentimiento', color='sentimiento',
