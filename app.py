@@ -308,7 +308,7 @@ with col_h_title:
 
     st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
 
-    st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
+    st.markdown(| Análisis automatizado de experiencia de usuario y fricción - App Store")
 
 
 
@@ -738,7 +738,7 @@ with tab_categorias:
 
 
 
-# --- TAB 4: EXPLORADOR DE COMENTARIOS CON TABLA HTML BLANCA PURA ---
+# --- TAB 4: EXPLORADOR DE COMENTARIOS  ---
 
 with tab_explorador:
 
