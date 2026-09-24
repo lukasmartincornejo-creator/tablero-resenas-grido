@@ -185,35 +185,38 @@ with col_h_title:
     st.markdown(f"**Grido {pais_seleccionado}** | Análisis automatizado de experiencia de usuario y fricción - App Store")
 
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ DE DATOS MULTIPAÍS
+# 3. EXTRACCIÓN Y CACHÉ DE DATOS MULTIPAÍS (CORREGIDO)
 # ==========================================
 APP_ID = 'com.grido.app'
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def cargar_datos(app_id, country_code):
-    resenas = reviews_all(
-        app_id,
-        sleep_milliseconds=0,
-        lang='es',
-        country=country_code,
-        sort=Sort.NEWEST
-    )
-    df = pd.DataFrame(resenas)
-    if not df.empty:
-        df['at'] = pd.to_datetime(df['at'])
-        def clasificar(score):
-            if score <= 2: return 'Negativo'
-            if score == 3: return 'Neutro'
-            return 'Positivo'
-        df['sentimiento'] = df['score'].apply(clasificar)
-        df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
-    return df
+def cargar_datos_por_pais(app_id, country_code):
+    try:
+        resenas = reviews_all(
+            app_id,
+            sleep_milliseconds=0,
+            lang='es',
+            country=country_code,
+            sort=Sort.NEWEST
+        )
+        df = pd.DataFrame(resenas)
+        if not df.empty:
+            df['at'] = pd.to_datetime(df['at'])
+            def clasificar(score):
+                if score <= 2: return 'Negativo'
+                if score == 3: return 'Neutro'
+                return 'Positivo'
+            df['sentimiento'] = df['score'].apply(clasificar)
+            df = df.drop(columns=['reviewId', 'userImage', 'replyContent', 'repliedAt'], errors='ignore')
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 with st.spinner(f"Descargando datos de Google Play Store ({pais_seleccionado})..."):
-    df = cargar_datos(APP_ID, pais_codigo)
+    df = cargar_datos_por_pais(APP_ID, pais_codigo)
 
 if df.empty:
-    st.warning(f"No se encontraron reseñas registradas para Grido en {pais_seleccionado} o no hay datos disponibles en Play Store actualmente.")
+    st.warning(f"No se encontraron reseñas registradas en Play Store para Grido en {pais_seleccionado}. Intenta seleccionando otro mercado.")
     st.stop()
 
 # ==========================================
