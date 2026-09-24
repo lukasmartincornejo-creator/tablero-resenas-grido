@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from google_play_scraper import Sort, reviews_all
+from google_play_scraper import Sort, reviews
 from datetime import datetime, timedelta
 import io
 import os
@@ -152,7 +152,7 @@ with col_h_logo:
         st.markdown("## 🍦")
 
 # ==========================================
-# 2. BARRA LATERAL (CONTROLES Y SELECTOR DE PAÍS)
+# 2. BARRA LATERAL (MULTIMERCADO)
 # ==========================================
 if os.path.exists(RUTA_LOGO):
     st.sidebar.image(RUTA_LOGO, use_container_width=True)
@@ -162,7 +162,7 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
-# Selector Multimercado
+# Selector de Países
 PAISES = {
     "🇦🇷 Argentina": "ar",
     "🇨🇱 Chile": "cl",
@@ -179,27 +179,27 @@ if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True
     st.cache_data.clear()
     st.rerun()
 
-# Subtítulo dinámico en el encabezado principal
 with col_h_title:
     st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
     st.markdown(f"**Grido {pais_seleccionado}** | Análisis automatizado de experiencia de usuario y fricción - App Store")
 
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ DE DATOS MULTIPAÍS (CORREGIDO)
+# 3. EXTRACCIÓN Y CACHÉ DINÁMICO POR PAÍS
 # ==========================================
 APP_ID = 'com.grido.app'
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def cargar_datos_por_pais(app_id, country_code):
     try:
-        resenas = reviews_all(
+        # Usamos reviews() con limitador de país estricto
+        result, _ = reviews(
             app_id,
-            sleep_milliseconds=0,
             lang='es',
             country=country_code,
-            sort=Sort.NEWEST
+            sort=Sort.NEWEST,
+            count=1000
         )
-        df = pd.DataFrame(resenas)
+        df = pd.DataFrame(result)
         if not df.empty:
             df['at'] = pd.to_datetime(df['at'])
             def clasificar(score):
@@ -212,11 +212,11 @@ def cargar_datos_por_pais(app_id, country_code):
     except Exception:
         return pd.DataFrame()
 
-with st.spinner(f"Descargando datos de Google Play Store ({pais_seleccionado})..."):
+with st.spinner(f"Descargando datos de Google Play Store para {pais_seleccionado}..."):
     df = cargar_datos_por_pais(APP_ID, pais_codigo)
 
 if df.empty:
-    st.warning(f"No se encontraron reseñas registradas en Play Store para Grido en {pais_seleccionado}. Intenta seleccionando otro mercado.")
+    st.warning(f"No se encontraron reseñas específicas registradas para Grido en {pais_seleccionado}. Intenta seleccionando otro país.")
     st.stop()
 
 # ==========================================
@@ -280,7 +280,7 @@ csat_actual = (df_actual['sentimiento'] == 'Positivo').mean() * 100 if not df_ac
 csat_anterior = (df_anterior['sentimiento'] == 'Positivo').mean() * 100 if not df_anterior.empty else 0
 delta_csat = csat_actual - csat_anterior
 
-kpi1.metric("Reseñas Históricas", f"{total_historico:,}")
+kpi1.metric("Reseñas Extraídas", f"{total_historico:,}")
 kpi2.metric(f"Reseñas ({dias_analisis}d)", f"{vol_actual:,}", delta=f"{delta_vol:+} vs p. anterior")
 kpi3.metric("Rating Promedio", f"{rating_actual:.2f} ⭐", delta=f"{delta_rating:+.2f} ⭐ vs p. anterior")
 kpi4.metric("CSAT Reciente", f"{csat_actual:.1f}%", delta=f"{delta_csat:+.1f}% vs p. anterior")
@@ -315,11 +315,11 @@ with tab_volumen:
 
 # --- TAB 2: COMPARATIVA ---
 with tab_sentimiento:
-    st.subheader("Análisis Comparativo por Periodos")
+    st.subheader(f"Análisis Comparativo por Periodos ({pais_seleccionado})")
     col_g1, col_g2, col_g3 = st.columns(3)
     
     with col_g1:
-        st.markdown("##### 📜 Histórico Completo")
+        st.markdown("##### 📜 Histórico Extraído")
         fig_pie_h = px.pie(
             df, names='sentimiento', color='sentimiento',
             color_discrete_map=color_map, hole=0.4, template="plotly_white"
@@ -352,7 +352,7 @@ with tab_sentimiento:
 
 # --- TAB 3: CATEGORÍAS DE FRICCIÓN ---
 with tab_categorias:
-    st.subheader("Categorización de Temas Recurrentes en el Periodo")
+    st.subheader(f"Categorización de Temas Recurrentes ({pais_seleccionado})")
     col_cat1, col_cat2 = st.columns(2)
     
     with col_cat1:
@@ -384,9 +384,9 @@ with tab_categorias:
         fig_score.update_layout(showlegend=False)
         st.plotly_chart(fig_score, use_container_width=True)
 
-# --- TAB 4: EXPLORADOR DE COMENTARIOS CON TABLA HTML BLANCA PURA ---
+# --- TAB 4: EXPLORADOR DE COMENTARIOS ---
 with tab_explorador:
-    st.subheader(f"Explorador Directo de Reseñas de Clientes ({pais_seleccionado})")
+    st.subheader(f"Explorador Directo de Reseñas ({pais_seleccionado})")
     
     col_f1, col_f2 = st.columns(2)
     with col_f1:
@@ -398,12 +398,10 @@ with tab_explorador:
     if busqueda_texto:
         df_filtrado = df_filtrado[df_filtrado['content'].str.contains(busqueda_texto, case=False, na=False)]
         
-    # Selección y formato de columnas
     df_tabla = df_filtrado[['at', 'userName', 'score', 'sentimiento', 'categoria', 'content']].sort_values(by='at', ascending=False).head(50).copy()
     df_tabla['at'] = df_tabla['at'].dt.strftime('%Y-%m-%d %H:%M')
     df_tabla.columns = ['Fecha', 'Usuario', 'Rating', 'Sentimiento', 'Categoría', 'Comentario Completo']
 
-    # Renderizado mediante Tabla HTML nativa para romper el Shadow DOM oscuro
     html_tabla = df_tabla.to_html(classes='tabla-blanca', index=False, escape=True)
     st.markdown(f'<div class="tabla-blanca-container">{html_tabla}</div>', unsafe_allow_html=True)
 
