@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS con forzado estricto sobre clases internas de Streamlit y Calendario Blanco
+# Estilos CSS con forzado estricto sobre clases internas de Streamlit
 st.markdown("""
     <style>
     /* 1. OCULTAR BOTÓN DE COLAPSO DEL SIDEBAR */
@@ -79,8 +79,8 @@ st.markdown("""
         padding: 0.6rem 1.2rem !important;
     }
 
-    /* 6. FORZADO TOTAL DE CALENDARIO E INPUTS A MODO CLARO (BLANCO PURAS) */
-    .stTextInput input, .stSelectbox div, .stMultiSelect div, .stDateInput input {
+    /* 6. SOBRESCRITURA DE INPUTS Y BUSCADORES (MODO CLARO) */
+    .stTextInput input, .stSelectbox div, .stMultiSelect div {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border-color: #cbd5e1 !important;
@@ -93,29 +93,6 @@ st.markdown("""
     }
     div[data-baseweb="tag"] span {
         color: #0f172a !important;
-    }
-
-    /* REGLAS ABSOLUTAS PARA EL POPUP DESPLEGABLE DEL CALENDARIO (BASEWEB) */
-    div[data-baseweb="popover"],
-    div[data-baseweb="popover"] *,
-    div[data-baseweb="calendar"],
-    div[data-baseweb="calendar"] *,
-    div[role="dialog"],
-    div[role="dialog"] * {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-    }
-    div[data-baseweb="calendar"] header,
-    div[data-baseweb="calendar"] header * {
-        background-color: #f1f5f9 !important;
-        color: #002169 !important;
-    }
-    div[data-baseweb="calendar"] button {
-        color: #0f172a !important;
-        background-color: #ffffff !important;
-    }
-    div[data-baseweb="calendar"] button:hover {
-        background-color: #e2e8f0 !important;
     }
 
     /* 7. ESTILO TABLA HTML NATIVA BLANCA */
@@ -174,8 +151,12 @@ with col_h_logo:
     else:
         st.markdown("## 🍦")
 
+with col_h_title:
+    st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
+    st.markdown("**Grido Argentina** | Análisis automatizado de experiencia de usuario y fricción - App Store")
+
 # ==========================================
-# 2. BARRA LATERAL (FILTROS TEMPORALES)
+# 2. BARRA LATERAL
 # ==========================================
 if os.path.exists(RUTA_LOGO):
     st.sidebar.image(RUTA_LOGO, use_container_width=True)
@@ -185,43 +166,16 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🕹️ Panel de Control")
 
-st.sidebar.markdown("#### ⏳ Selección de Periodo")
-
-usar_calendario = st.sidebar.checkbox("📆 Habilitar rango con calendario")
-
-hoy = datetime.now().date()
-
-if usar_calendario:
-    hace_15_dias = hoy - timedelta(days=15)
-    rango_fechas = st.sidebar.date_input(
-        "Selecciona Rango (Inicio - Fin):",
-        value=(hace_15_dias, hoy),
-        max_value=hoy
-    )
-    if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
-        fecha_inicio, fecha_fin = rango_fechas
-    else:
-        fecha_inicio = hace_15_dias
-        fecha_fin = hoy
-    dias_analisis = (fecha_fin - fecha_inicio).days + 1
-else:
-    dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
-    fecha_fin = hoy
-    fecha_inicio = hoy - timedelta(days=dias_analisis - 1)
+APP_ID = 'com.grido.app'
+dias_analisis = st.sidebar.slider("Periodo a analizar (Días):", min_value=7, max_value=60, value=15)
 
 if st.sidebar.button("🔄 Actualizar datos on-demand", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-with col_h_title:
-    st.title("Tablero Ejecutivo: Monitoreo Voz del Cliente (VdC)")
-    st.markdown(f"**Grido Argentina** | Análisis del **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}** ({dias_analisis} días)")
-
 # ==========================================
-# 3. EXTRACCIÓN Y CACHÉ DE DATOS (ARGENTINA)
+# 3. EXTRACCIÓN Y CACHÉ DE DATOS
 # ==========================================
-APP_ID = 'com.grido.app'
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def cargar_datos(app_id):
     resenas = reviews_all(
@@ -252,18 +206,16 @@ if df.empty:
 # ==========================================
 # 4. SEGMENTACIÓN TEMPORAL Y CATEGORIZACIÓN
 # ==========================================
-inicio_dt = datetime.combine(fecha_inicio, datetime.min.time())
-fin_dt = datetime.combine(fecha_fin, datetime.max.time())
+ahora = datetime.now()
+fecha_corte_actual = ahora - timedelta(days=dias_analisis)
+fecha_corte_anterior = fecha_corte_actual - timedelta(days=dias_analisis)
 
-inicio_anterior = inicio_dt - timedelta(days=dias_analisis)
-fin_anterior = inicio_dt - timedelta(seconds=1)
+df_actual = df[(df['at'] >= fecha_corte_actual) & (df['at'] <= ahora)].copy()
+df_anterior = df[(df['at'] >= fecha_corte_anterior) & (df['at'] < fecha_corte_actual)].copy()
 
-df_actual = df[(df['at'] >= inicio_dt) & (df['at'] <= fin_dt)].copy()
-df_anterior = df[(df['at'] >= inicio_anterior) & (df['at'] <= fin_anterior)].copy()
-
-fecha_mes_actual = hoy - timedelta(days=30)
-fecha_mes_anterior = hoy - timedelta(days=60)
-df_mes_anterior = df[(df['at'].dt.date >= fecha_mes_anterior) & (df['at'].dt.date < fecha_mes_actual)].copy()
+fecha_mes_actual = ahora - timedelta(days=30)
+fecha_mes_anterior = ahora - timedelta(days=60)
+df_mes_anterior = df[(df['at'] >= fecha_mes_anterior) & (df['at'] < fecha_mes_actual)].copy()
 
 def categorizar_reclamo(texto):
     texto = str(texto).lower()
@@ -340,7 +292,7 @@ tab_volumen, tab_sentimiento, tab_categorias, tab_explorador = st.tabs([
 
 # --- TAB 1: TENDENCIA ---
 with tab_volumen:
-    st.subheader(f"Evolución Diaria de Opiniones ({fecha_inicio.strftime('%d/%m')} al {fecha_fin.strftime('%d/%m/%Y')})")
+    st.subheader(f"Evolución Diaria de Opiniones (Últimos {dias_analisis} días)")
     if not df_actual.empty:
         df_actual['fecha'] = df_actual['at'].dt.date
         df_time = df_actual.groupby(['fecha', 'sentimiento']).size().reset_index(name='cantidad')
@@ -352,8 +304,6 @@ with tab_volumen:
         )
         fig_line = aplicar_estilo_grafico(fig_line)
         st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.info("No hay opiniones registradas dentro del rango de fechas seleccionado.")
 
 # --- TAB 2: COMPARATIVA ---
 with tab_sentimiento:
@@ -371,7 +321,7 @@ with tab_sentimiento:
         st.plotly_chart(fig_pie_h, use_container_width=True)
 
     with col_g2:
-        st.markdown("##### 📅 Mes Anterior")
+        st.markdown("##### 📅 Mes Anterior (30-60 días atrás)")
         if not df_mes_anterior.empty:
             fig_pie_m = px.pie(
                 df_mes_anterior, names='sentimiento', color='sentimiento',
@@ -382,7 +332,7 @@ with tab_sentimiento:
             st.plotly_chart(fig_pie_m, use_container_width=True)
 
     with col_g3:
-        st.markdown(f"##### 🚀 Periodo Seleccionado ({dias_analisis}d)")
+        st.markdown(f"##### 🚀 Periodo Actual ({dias_analisis} días)")
         if not df_actual.empty:
             fig_pie_s = px.pie(
                 df_actual, names='sentimiento', color='sentimiento',
@@ -399,34 +349,32 @@ with tab_categorias:
     
     with col_cat1:
         st.markdown("##### 🔍 Distribución por Categoría de Reclamo/Tema")
-        if not df_actual.empty:
-            df_cat_count = df_actual['categoria'].value_counts().reset_index()
-            df_cat_count.columns = ['Categoría', 'Cantidad']
-            
-            fig_cat = px.bar(
-                df_cat_count, x='Cantidad', y='Categoría', orientation='h',
-                color='Categoría', color_discrete_sequence=px.colors.qualitative.Bold,
-                template="plotly_white"
-            )
-            fig_cat = aplicar_estilo_grafico(fig_cat)
-            fig_cat.update_layout(showlegend=False)
-            st.plotly_chart(fig_cat, use_container_width=True)
+        df_cat_count = df_actual['categoria'].value_counts().reset_index()
+        df_cat_count.columns = ['Categoría', 'Cantidad']
+        
+        fig_cat = px.bar(
+            df_cat_count, x='Cantidad', y='Categoría', orientation='h',
+            color='Categoría', color_discrete_sequence=px.colors.qualitative.Bold,
+            template="plotly_white"
+        )
+        fig_cat = aplicar_estilo_grafico(fig_cat)
+        fig_cat.update_layout(showlegend=False)
+        st.plotly_chart(fig_cat, use_container_width=True)
         
     with col_cat2:
         st.markdown("##### ⭐ Desglose Estricto por Calificación (Estrellas)")
-        if not df_actual.empty:
-            df_score_count = df_actual['score'].value_counts().reset_index()
-            df_score_count.columns = ['Estrellas', 'Cantidad']
-            df_score_count['Estrellas'] = df_score_count['Estrellas'].astype(str) + " ⭐"
-            
-            fig_score = px.bar(
-                df_score_count, x='Estrellas', y='Cantidad',
-                color='Estrellas', color_discrete_sequence=['#e30613', '#f39c12', '#00a0e9', '#2ecc71', '#002169'],
-                template="plotly_white"
-            )
-            fig_score = aplicar_estilo_grafico(fig_score)
-            fig_score.update_layout(showlegend=False)
-            st.plotly_chart(fig_score, use_container_width=True)
+        df_score_count = df_actual['score'].value_counts().reset_index()
+        df_score_count.columns = ['Estrellas', 'Cantidad']
+        df_score_count['Estrellas'] = df_score_count['Estrellas'].astype(str) + " ⭐"
+        
+        fig_score = px.bar(
+            df_score_count, x='Estrellas', y='Cantidad',
+            color='Estrellas', color_discrete_sequence=['#e30613', '#f39c12', '#00a0e9', '#2ecc71', '#002169'],
+            template="plotly_white"
+        )
+        fig_score = aplicar_estilo_grafico(fig_score)
+        fig_score.update_layout(showlegend=False)
+        st.plotly_chart(fig_score, use_container_width=True)
 
 # --- TAB 4: EXPLORADOR DE COMENTARIOS ---
 with tab_explorador:
@@ -449,8 +397,6 @@ with tab_explorador:
 
         html_tabla = df_tabla.to_html(classes='tabla-blanca', index=False, escape=True)
         st.markdown(f'<div class="tabla-blanca-container">{html_tabla}</div>', unsafe_allow_html=True)
-    else:
-        st.info("No se encontraron reseñas que coincidan con los filtros dentro del rango seleccionado.")
 
 # ==========================================
 # 7. EXPORTACIÓN
@@ -460,7 +406,7 @@ st.markdown("---")
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     df.to_excel(writer, sheet_name='Historico_Completo', index=False)
-    df_actual.to_excel(writer, sheet_name='Periodo_Seleccionado', index=False)
+    df_actual.to_excel(writer, sheet_name='Periodo_Actual', index=False)
     df_anterior.to_excel(writer, sheet_name='Periodo_Anterior_Eq', index=False)
 
 st.download_button(
